@@ -1,0 +1,49 @@
+{
+  "_from": "https://www.atom.io/api/packages/click-link/versions/1.0.11/tarball",
+  "_id": "click-link@1.0.11",
+  "_inBundle": false,
+  "_integrity": "sha512-p+V/yxA48Q3GdNSTTxfHjJBreyIgApB6NHjU1PZFCDGXK0T/Cb2OturwFykxJpXmMX1alT6YdOnYz90SathxIg==",
+  "_location": "/click-link",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/click-link/versions/1.0.11/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/click-link/versions/1.0.11/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/click-link/versions/1.0.11/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/click-link/versions/1.0.11/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/click-link/versions/1.0.11/tarball",
+  "_shasum": "88ae468fc6cd3e92a53e1813f68e339fd99fc704",
+  "_spec": "https://www.atom.io/api/packages/click-link/versions/1.0.11/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-119115-16993-1guq0f0.p71l",
+  "bugs": {
+    "url": "https://github.com/patrick96/click-link/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Enables ctrl clicking links and opening them in the browser",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "homepage": "https://github.com/patrick96/click-link#readme",
+  "keywords": [
+    "link",
+    "click",
+    "ctrl-click",
+    "open in browser",
+    "open link",
+    "browser"
+  ],
+  "license": "MIT",
+  "main": "./lib/click-link",
+  "name": "click-link",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/patrick96/click-link.git"
+  },
+  "version": "1.0.11"
+}

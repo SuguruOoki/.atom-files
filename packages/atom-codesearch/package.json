@@ -1,0 +1,120 @@
+{
+  "_from": "https://www.atom.io/api/packages/atom-codesearch/versions/1.4.0/tarball",
+  "_id": "atom-codesearch@1.4.0",
+  "_inBundle": false,
+  "_integrity": "sha512-eO0sdFJVCu4RetgqTjM11ekoQT8UMJ16e2fLGh/uOpF9Md0598qMCYQa8+iOR8yuv/u/kK1zDsavLIsSdD5A2w==",
+  "_location": "/atom-codesearch",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/atom-codesearch/versions/1.4.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/atom-codesearch/versions/1.4.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/atom-codesearch/versions/1.4.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/atom-codesearch/versions/1.4.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/atom-codesearch/versions/1.4.0/tarball",
+  "_shasum": "e88e853a54edd64fda788f4136d9f4096c7bdc4d",
+  "_spec": "https://www.atom.io/api/packages/atom-codesearch/versions/1.4.0/tarball",
+  "_where": "/private/tmp/apm-install-dir-11964-7474-16kqhpr.izkv",
+  "activationCommands": {
+    "atom-workspace": [
+      "code-search:toggle",
+      "code-search:reindex-project"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/antelle/atom-codesearch/issues"
+  },
+  "bundleDependencies": false,
+  "configSchema": {
+    "engine": {
+      "type": "string",
+      "default": "rg",
+      "title": "Search engine",
+      "description": "Which search engine to use (it must be installed in your system)",
+      "enum": [
+        {
+          "value": "csearch",
+          "description": "Google CodeSearch"
+        },
+        {
+          "value": "rg",
+          "description": "ripgrep (rg)"
+        },
+        {
+          "value": "ag",
+          "description": "The Silver Searcher"
+        },
+        {
+          "value": "pt",
+          "description": "The Platinum Searcher"
+        }
+      ],
+      "order": 1
+    },
+    "path": {
+      "type": "string",
+      "default": "",
+      "title": "Executable path",
+      "description": "Path to search engine executable, default: $PATH",
+      "order": 5
+    },
+    "opts": {
+      "type": "string",
+      "default": "",
+      "title": "Additional options",
+      "description": "Additional options passed to search engine",
+      "order": 10
+    },
+    "optsIndex": {
+      "type": "string",
+      "default": "",
+      "title": "Indexer options for CodeSearch",
+      "description": "Google CodeSearch: additional options passed to cindex",
+      "order": 11
+    },
+    "useGlobalCodeSearchIndex": {
+      "type": "boolean",
+      "default": false,
+      "title": "CodeSearch index location",
+      "description": "Google CodeSearch: which .csearchindex file to use",
+      "order": 20,
+      "enum": [
+        {
+          "value": false,
+          "description": "Create per-project index files for faster indexing"
+        },
+        {
+          "value": true,
+          "description": "Use global index file from home directory: ~/.csearchindex"
+        }
+      ]
+    },
+    "debugMode": {
+      "type": "boolean",
+      "default": false,
+      "title": "Debug mode",
+      "description": "Print diagnostic messages to DevTools console",
+      "order": 100
+    }
+  },
+  "deprecated": false,
+  "description": "Super-fast search for code using different search engines: CodeSearch, ripgrep, ag, pt",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "homepage": "https://github.com/antelle/atom-codesearch#readme",
+  "keywords": [],
+  "license": "MIT",
+  "main": "./lib/atom-codesearch",
+  "name": "atom-codesearch",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antelle/atom-codesearch.git"
+  },
+  "version": "1.4.0"
+}

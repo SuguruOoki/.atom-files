@@ -1,0 +1,51 @@
+{
+  "_from": "https://www.atom.io/api/packages/open-git-modified-files/versions/0.2.4/tarball",
+  "_id": "open-git-modified-files@0.2.4",
+  "_inBundle": false,
+  "_integrity": "sha512-zgSyGCvO7pVjKZFFs/ie/0/Rslm3kTSIfCU/detKPe0qTc+8NFJmQ946snTLqBpZYgwgH6MiomveX2WuAOvnnw==",
+  "_location": "/open-git-modified-files",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/open-git-modified-files/versions/0.2.4/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/open-git-modified-files/versions/0.2.4/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/open-git-modified-files/versions/0.2.4/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/open-git-modified-files/versions/0.2.4/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/open-git-modified-files/versions/0.2.4/tarball",
+  "_shasum": "35b0b6870637fb5b84008ae887704b5cc6fdb524",
+  "_spec": "https://www.atom.io/api/packages/open-git-modified-files/versions/0.2.4/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-1181011-3356-1njjvoq.ffkah",
+  "activationCommands": {
+    "atom-workspace": "open-git-modified-files:open"
+  },
+  "bugs": {
+    "url": "https://github.com/hmatsuda/open-git-modified-files/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "fs-plus": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "Open git modified files",
+  "engines": {
+    "atom": ">=1.8.0 <2.0.0"
+  },
+  "homepage": "https://github.com/hmatsuda/open-git-modified-files#readme",
+  "keywords": [
+    "git",
+    "open"
+  ],
+  "license": "MIT",
+  "main": "./lib/open-git-modified-files",
+  "name": "open-git-modified-files",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hmatsuda/open-git-modified-files.git"
+  },
+  "version": "0.2.4"
+}

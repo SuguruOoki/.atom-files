@@ -1,0 +1,56 @@
+{
+  "_from": "https://www.atom.io/api/packages/plantuml/versions/0.1.2/tarball",
+  "_id": "plantuml@0.1.2",
+  "_inBundle": false,
+  "_integrity": "sha512-PZvfQoQuwTPhnDGbUfw6gIlVILkUm2dyk1RZeGiKcNHGMrmUU9Ly+fHw2R9KqbG9U7j2p2T9enumaqgV+xajvA==",
+  "_location": "/plantuml",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/plantuml/versions/0.1.2/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/plantuml/versions/0.1.2/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/plantuml/versions/0.1.2/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/plantuml/versions/0.1.2/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/plantuml/versions/0.1.2/tarball",
+  "_shasum": "44c12efb01d2db2f36109feb04112b7c7c933d72",
+  "_spec": "https://www.atom.io/api/packages/plantuml/versions/0.1.2/tarball",
+  "_where": "/private/tmp/apm-install-dir-119215-43795-hcuo1f.d58lc",
+  "activationCommands": {
+    "atom-workspace": "plantuml:generate"
+  },
+  "author": {
+    "name": "Mike Rohland",
+    "url": "http://github.com/mrohland"
+  },
+  "bugs": {
+    "url": "https://github.com/mrohland/plantuml/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "fs-plus": "2.x",
+    "temp": ">=0.8.1"
+  },
+  "deprecated": false,
+  "description": "Adds shortcut to generate png files out of PlantUml text files. Expects plantUml to be available via PATH.",
+  "engines": {
+    "atom": ">=0.174.0 <2.0.0"
+  },
+  "homepage": "https://atom.io/packages/plantuml",
+  "keywords": [
+    "plantuml",
+    "uml"
+  ],
+  "license": "MIT",
+  "main": "./lib/plantuml",
+  "name": "plantuml",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrohland/plantuml.git"
+  },
+  "version": "0.1.2"
+}

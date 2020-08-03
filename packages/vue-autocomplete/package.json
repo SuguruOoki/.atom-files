@@ -1,0 +1,59 @@
+{
+  "_from": "https://www.atom.io/api/packages/vue-autocomplete/versions/0.1.1/tarball",
+  "_id": "vue-autocomplete@0.1.1",
+  "_inBundle": false,
+  "_integrity": "sha512-xERRZKXcIxZBXHLWUETzZwesIoZugF12QKZ3YRSFwjlJJTp/z4TlCarFyh393B0oZTnvHIxAxjuOP7z1QhIdFw==",
+  "_location": "/vue-autocomplete",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/vue-autocomplete/versions/0.1.1/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/vue-autocomplete/versions/0.1.1/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/vue-autocomplete/versions/0.1.1/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/vue-autocomplete/versions/0.1.1/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/vue-autocomplete/versions/0.1.1/tarball",
+  "_shasum": "18137cc593a15885808b72d8979ff4352883bc37",
+  "_spec": "https://www.atom.io/api/packages/vue-autocomplete/versions/0.1.1/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-119324-34268-ds39ln.vxx4v",
+  "author": {
+    "name": "Eduardo Alves"
+  },
+  "bugs": {
+    "url": "https://github.com/ealves-pt/atom-vue-autocomplete/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "fuzzaldrin": "^2.1.0"
+  },
+  "deprecated": false,
+  "description": "Vue.js 1.0+ autocomplete for Atom",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "homepage": "https://github.com/ealves-pt/atom-vue-autocomplete#readme",
+  "keywords": [
+    "vue",
+    "autocomplete",
+    "provider"
+  ],
+  "license": "MIT",
+  "main": "./lib/main",
+  "name": "vue-autocomplete",
+  "providedServices": {
+    "autocomplete.provider": {
+      "versions": {
+        "2.0.0": "getProvider"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ealves-pt/atom-vue-autocomplete.git"
+  },
+  "version": "0.1.1"
+}

@@ -1,0 +1,51 @@
+{
+  "_from": "https://www.atom.io/api/packages/date/versions/2.6.0/tarball",
+  "_id": "date@2.6.0",
+  "_inBundle": false,
+  "_integrity": "sha512-Ly5WadoY4ssagPK2RxzlDwJ8/+MyUjqE0rsL+Z6B8fx4k8ijgTf/4SnaUUw/KSwKGR8akyHpcdJmhfqkBUpv2Q==",
+  "_location": "/date",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/date/versions/2.6.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/date/versions/2.6.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/date/versions/2.6.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/date/versions/2.6.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/date/versions/2.6.0/tarball",
+  "_shasum": "cb51575bc0b3560b9ccdb40b31fa4c3bca9f3b4e",
+  "_spec": "https://www.atom.io/api/packages/date/versions/2.6.0/tarball",
+  "_where": "/private/var/folders/lz/kwk6m3316gv73_nzcz9djyvr0000gn/T/apm-install-dir-11971-47333-1df142q.g932",
+  "activationCommands": {
+    "atom-text-editor": [
+      "date:date",
+      "date:time",
+      "date:datetime"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/dannyfritz/atom-date/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "moment": "^2.22.2"
+  },
+  "deprecated": false,
+  "description": "Insert the current date & time. See the readme for format options.",
+  "engines": {
+    "atom": ">0.177.0 <2.0.0"
+  },
+  "homepage": "https://github.com/dannyfritz/atom-date#readme",
+  "license": "MIT",
+  "main": "./lib/date.js",
+  "name": "date",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dannyfritz/atom-date.git"
+  },
+  "version": "2.6.0"
+}

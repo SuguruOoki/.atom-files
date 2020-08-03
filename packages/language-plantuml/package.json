@@ -1,0 +1,40 @@
+{
+  "_from": "https://www.atom.io/api/packages/language-plantuml/versions/0.2.0/tarball",
+  "_id": "language-plantuml@0.2.0",
+  "_inBundle": false,
+  "_integrity": "sha512-yxtUdZV8ymsgX5TtSrEQyCRvJrPOMrS7s0fC/yFWkIuR7gXCUg99rpDGAk7YxSvNxt3W5pI3iMQCMeTT/qu1lg==",
+  "_location": "/language-plantuml",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/language-plantuml/versions/0.2.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/language-plantuml/versions/0.2.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/language-plantuml/versions/0.2.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/language-plantuml/versions/0.2.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/language-plantuml/versions/0.2.0/tarball",
+  "_shasum": "94e8b00fe556029a7d13056f88f213b4ff43aeeb",
+  "_spec": "https://www.atom.io/api/packages/language-plantuml/versions/0.2.0/tarball",
+  "_where": "/private/tmp/apm-install-dir-119215-43842-10fbyz0.ijgb",
+  "bugs": {
+    "url": "https://github.com/plafue/language-plantuml/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "PlantUML language support for atom",
+  "engines": {
+    "atom": ">=0.174.0 <2.0.0"
+  },
+  "homepage": "https://github.com/plafue/language-plantuml#readme",
+  "license": "MIT",
+  "name": "language-plantuml",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/plafue/language-plantuml.git"
+  },
+  "version": "0.2.0"
+}

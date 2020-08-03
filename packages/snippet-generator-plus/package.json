@@ -1,0 +1,63 @@
+{
+  "_from": "https://www.atom.io/api/packages/snippet-generator-plus/versions/0.1.2/tarball",
+  "_id": "snippet-generator-plus@0.1.2",
+  "_inBundle": false,
+  "_integrity": "sha512-AMGIWfkB/IQwnabSLflSG7CwyahIdmEdl/xAbKzsR/eIFP6SqmUrCHXqmwkH+WYcFDs1U5pk68pRPcjuQmB9yg==",
+  "_location": "/snippet-generator-plus",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/snippet-generator-plus/versions/0.1.2/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/snippet-generator-plus/versions/0.1.2/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/snippet-generator-plus/versions/0.1.2/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/snippet-generator-plus/versions/0.1.2/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/snippet-generator-plus/versions/0.1.2/tarball",
+  "_shasum": "302256a571ac83510e87e7c2394070fc7de5a027",
+  "_spec": "https://www.atom.io/api/packages/snippet-generator-plus/versions/0.1.2/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-118116-10184-s5eviu.ivvne",
+  "activationCommands": {
+    "atom-text-editor": "snippet-generator-plus:generate"
+  },
+  "bugs": {
+    "url": "https://github.com/aki77/atom-snippet-generator-plus/issues"
+  },
+  "bundleDependencies": false,
+  "consumedServices": {
+    "snippets": {
+      "versions": {
+        "0.1.0": "consumeSnippets"
+      }
+    }
+  },
+  "dependencies": {
+    "atom-select-list": "^0.2.0"
+  },
+  "deprecated": false,
+  "description": "Generate snippet from code",
+  "devDependencies": {
+    "eslint": "^3.19.0",
+    "eslint-config-airbnb-base": "^11.2.0",
+    "eslint-plugin-import": "^2.3.0"
+  },
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "homepage": "https://github.com/aki77/atom-snippet-generator-plus#readme",
+  "keywords": [
+    "snippet",
+    "generator"
+  ],
+  "license": "MIT",
+  "main": "./lib/main",
+  "name": "snippet-generator-plus",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aki77/atom-snippet-generator-plus.git"
+  },
+  "version": "0.1.2"
+}

@@ -1,0 +1,168 @@
+{
+  "tags": {
+    "completions": [
+      {
+        "displayText": "Partial",
+        "snippet": "partial name=\"$1\"></partial>",
+        "type": "tag",
+        "rightLabelHTML": "vue.js"
+      },
+      {
+        "displayText": "Dynamic partial",
+        "snippet": "partial :name=\"$1\"></partial>",
+        "type": "tag",
+        "rightLabelHTML": "vue.js"
+      },
+      {
+        "displayText": "Slot",
+        "snippet": "slot></slot>",
+        "type": "tag",
+        "rightLabelHTML": "vue.js"
+      },
+      {
+        "displayText": "Named slot",
+        "snippet": "slot name=\"$1\"></slot>",
+        "type": "tag",
+        "rightLabelHTML": "vue.js"
+      }
+    ]
+  },
+  "attributes": {
+    "tags": {
+      "input": [
+        "v-model"
+      ],
+      "select": [
+        "v-model"
+      ],
+      "textarea": [
+        "v-model"
+      ]
+    },
+    "global": [
+      "v-text",
+      "v-html",
+      "v-if",
+      "v-show",
+      "v-else",
+      "v-for",
+      "v-on",
+      "v-bind",
+      "v-ref",
+      "v-el",
+      "v-pre",
+      "v-cloak"
+    ],
+    "completions": {
+      "v-text": [{
+        "type": "attribute",
+        "displayText": "v-text",
+        "snippet": "v-text=\"$1\"",
+        "description": "Updates the element’s textContent",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-text"
+      }],
+      "v-html": [{
+        "type": "attribute",
+        "displayText": "v-html",
+        "snippet": "v-html=\"$1\"",
+        "description": "Updates the element’s innerHTML",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-html"
+      }],
+      "v-if": [{
+        "type": "attribute",
+        "displayText": "v-if",
+        "snippet": "v-if=\"$1\"",
+        "description": "Conditionally render the element",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-if"
+      }],
+      "v-show": [{
+        "type": "attribute",
+        "displayText": "v-show",
+        "snippet": "v-show=\"$1\"",
+        "description": "Toggle’s the element’s display CSS property",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-show"
+      }],
+      "v-else": [{
+        "type": "attribute",
+        "displayText": "v-else",
+        "snippet": "v-else",
+        "description": "Denote the “else block” for v-if and v-show",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-else"
+      }],
+      "v-for": [{
+        "type": "attribute",
+        "displayText": "v-for",
+        "snippet": "v-for=\"$1\"",
+        "description": "Render the element or template block multiple times",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-for"
+      }],
+      "v-on": [
+        {
+          "type": "attribute",
+          "displayText": "v-on (short)",
+          "snippet": "@$1=\"$2\"",
+          "description": "Attaches an event listener to the element",
+          "descriptionMoreURL": "http://vuejs.org/api/#v-on"
+        },
+        {
+          "type": "attribute",
+          "displayText": "v-on",
+          "snippet": "v-on:$1=\"$2\"",
+          "description": "Attaches an event listener to the element",
+          "descriptionMoreURL": "http://vuejs.org/api/#v-on"
+        }
+      ],
+      "v-bind": [
+        {
+          "type": "attribute",
+          "displayText": "v-bind (short)",
+          "snippet": ":$1${2:.$3}=\"$4\"",
+          "description": "Dynamically bind one or more attributes, or a component prop to an expression",
+          "descriptionMoreURL": "http://vuejs.org/api/#v-bind"
+        },
+        {
+          "type": "attribute",
+          "displayText": "v-bind",
+          "snippet": "v-bind:$1${2:.$3}=\"$4\"",
+          "description": "Dynamically bind one or more attributes, or a component prop to an expression",
+          "descriptionMoreURL": "http://vuejs.org/api/#v-bind"
+        }
+      ],
+      "v-model": [{
+        "type": "attribute",
+        "displayText": "v-model",
+        "snippet": "v-model=\"$1\"",
+        "description": "Create a two-way binding on a form input element",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-model"
+      }],
+      "v-ref": [{
+        "type": "attribute",
+        "displayText": "v-ref",
+        "snippet": "v-ref:$1",
+        "description": "Register a reference to a child component on its parent for direct access",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-ref"
+      }],
+      "v-el": [{
+        "type": "attribute",
+        "displayText": "v-el",
+        "snippet": "v-el:$1",
+        "description": "Register a reference to a DOM element on its parent for direct access",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-el"
+      }],
+      "v-pre": [{
+        "type": "attribute",
+        "displayText": "v-pre",
+        "snippet": "v-pre",
+        "description": "Skip compilation for this element and all its children",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-pre"
+      }],
+      "v-cloak": [{
+        "type": "attribute",
+        "displayText": "v-cloak",
+        "snippet": "v-cloak",
+        "description": "This directive will remain on the element until the associated Vue instance finishes compilation",
+        "descriptionMoreURL": "http://vuejs.org/api/#v-cloak"
+      }]
+    }
+  }
+}

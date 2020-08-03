@@ -1,0 +1,57 @@
+{
+  "_from": "https://www.atom.io/api/packages/copy-find-results/versions/0.2.0/tarball",
+  "_id": "copy-find-results@0.2.0",
+  "_inBundle": false,
+  "_integrity": "sha512-zPc2E8dKuHi29T9oOf1R+S1AlfBA9zx0IS/f1hrXYcklu4/QHkPv7Jg9J/K9n8v9q+95UC3cvpeV2ww5Q3ynAA==",
+  "_location": "/copy-find-results",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/copy-find-results/versions/0.2.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/copy-find-results/versions/0.2.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/copy-find-results/versions/0.2.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/copy-find-results/versions/0.2.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/copy-find-results/versions/0.2.0/tarball",
+  "_shasum": "a752730da6f4f8e152daf530d888fec2e6559597",
+  "_spec": "https://www.atom.io/api/packages/copy-find-results/versions/0.2.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-1181117-6498-w285ph.vh9m",
+  "activationCommands": {
+    "atom-workspace": [
+      "copy-find-results:text",
+      "copy-find-results:json"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/Swivelgames/copy-find-results/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Copies 'Find In Project' results to clipboard and displays in a new tab in format inspired by Sublime Text.",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "homepage": "https://github.com/Swivelgames/copy-find-results#readme",
+  "keywords": [
+    "copy",
+    "find",
+    "replace",
+    "search",
+    "sublime",
+    "page",
+    "result"
+  ],
+  "license": "MIT",
+  "main": "./lib/copy-find-results",
+  "name": "copy-find-results",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Swivelgames/copy-find-results.git"
+  },
+  "version": "0.2.0"
+}

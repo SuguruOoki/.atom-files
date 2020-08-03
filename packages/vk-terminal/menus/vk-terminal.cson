@@ -1,0 +1,66 @@
+'context-menu':
+  '.vk-terminal .vk-terminal-status-icon': [
+    {label: 'Red', command: 'vk-terminal:status-red'},
+    {label: 'Orange', command: 'vk-terminal:status-orange'},
+    {label: 'Yellow', command: 'vk-terminal:status-yellow'},
+    {label: 'Green', command: 'vk-terminal:status-green'},
+    {label: 'Blue', command: 'vk-terminal:status-blue'},
+    {label: 'Purple', command: 'vk-terminal:status-purple'},
+    {label: 'Pink', command: 'vk-terminal:status-pink'},
+    {label: 'Cyan', command: 'vk-terminal:status-cyan'},
+    {label: 'Magenta', command: 'vk-terminal:status-magenta'},
+    {label: 'Default', command: 'vk-terminal:status-default'},
+    {type: 'separator'},
+    {label: 'Hide', command: 'vk-terminal:context-hide'},
+    {label: 'Rename', command: 'vk-terminal:context-rename'},
+    {label: 'Close', command: 'vk-terminal:context-close'}
+  ]
+  '.vk-terminal .terminal': [
+    {label: 'Copy', command: 'vk-terminal:copy'},
+    {label: 'Paste', command: 'vk-terminal:paste'},
+    {type: 'separator'},
+    {label: 'Hide', command: 'vk-terminal:hide'},
+    {label: 'Close', command: 'vk-terminal:close'}
+  ]
+'menu': [
+  {
+    'label': 'Packages'
+    'submenu': [
+      'label': 'vk-terminal'
+      'submenu': [
+        {
+          'label': 'Toggle'
+          'command': 'vk-terminal:toggle'
+        },
+        {
+          'label': 'Focus'
+          'command': 'vk-terminal:focus'
+        },
+        {
+          'label': 'New Terminal'
+          'command': 'vk-terminal:new'
+        },
+        {
+          'label': 'Previous Terminal'
+          'command': 'vk-terminal:prev'
+        },
+        {
+          'label': 'Next Terminal'
+          'command': 'vk-terminal:next'
+        },
+        {
+          'label': 'Toggle Fullscreen'
+          'command': 'vk-terminal:fullscreen'
+        },
+        {
+          'label': 'Close Terminal'
+          'command': 'vk-terminal:close'
+        },
+        {
+          'label': 'Close All Terminals'
+          'command': 'vk-terminal:close-all'
+        }
+      ]
+    ]
+  }
+]

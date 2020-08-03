@@ -1,0 +1,74 @@
+{
+  "_from": "https://www.atom.io/api/packages/incremental-search/versions/5.2.2/tarball",
+  "_id": "incremental-search@5.2.2",
+  "_inBundle": false,
+  "_integrity": "sha512-E8pb7paIvb8CE1sP+4zdQdpU9oYkjr246RyrFuCyew57JY+Ll1vc2Z4Io253gwj2FyOm6QFR1LmetmwM9H2f7w==",
+  "_location": "/incremental-search",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/incremental-search/versions/5.2.2/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/incremental-search/versions/5.2.2/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/incremental-search/versions/5.2.2/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/incremental-search/versions/5.2.2/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/incremental-search/versions/5.2.2/tarball",
+  "_shasum": "1cb4efe55e734261c5c307e7dbabc0e359d7a727",
+  "_spec": "https://www.atom.io/api/packages/incremental-search/versions/5.2.2/tarball",
+  "_where": "/private/tmp/apm-install-dir-119018-98320-16w7cau.x1m",
+  "activationCommands": {
+    "atom-workspace": [
+      "incremental-search:forward",
+      "incremental-search:backward"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/gangstead/atom-incremental-search/issues"
+  },
+  "bundleDependencies": false,
+  "configSchema": {
+    "instantSearch": {
+      "type": "boolean",
+      "default": false,
+      "description": "Search as you type, instead of waiting until you stop typing."
+    },
+    "keepOptionsAfterSearch": {
+      "type": "boolean",
+      "default": true,
+      "description": "Keep the values of the Match Case and Use Regex options between searches."
+    },
+    "landAtPointInsteadOfRange": {
+      "type": "boolean",
+      "default": false,
+      "description": "Leave your cursor at a single point instead of selecting your search term."
+    },
+    "cancelSearchOnBlur": {
+      "type": "boolean",
+      "default": false,
+      "description": "Cancel the search on blur event, i.e. clicking outside of the search bar."
+    }
+  },
+  "dependencies": {
+    "atom-space-pen-views": "^2.0.3",
+    "emissary": "1.x",
+    "underscore-plus": "1.x"
+  },
+  "deprecated": false,
+  "description": "Incremental search for Atom",
+  "engines": {
+    "atom": ">0.50.0"
+  },
+  "homepage": "https://github.com/gangstead/atom-incremental-search#readme",
+  "license": "MIT",
+  "main": "./lib/isearch",
+  "name": "incremental-search",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gangstead/atom-incremental-search.git"
+  },
+  "version": "5.2.2"
+}

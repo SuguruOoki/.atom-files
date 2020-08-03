@@ -1,0 +1,101 @@
+'.source.js':
+
+  'pack -> vue-router':
+    'prefix': 'vr-pack',
+    'body': """
+    import Vue from 'vue'
+    import Router from 'vue-router'
+    import Hello from '@/components/Hello'
+    import Sample from '@/components/Sample'
+
+    Vue.use(Router)
+
+    const routes = [
+      {
+        path: '/',
+        name: 'Hello',
+        component: Hello
+      },
+      {
+        path: '/sample',
+        name: 'Sample',
+        component: Sample,
+        children: [
+          {
+            path: '/',
+            redirect: 'music'
+          },
+          {
+            path: 'music',
+            name: 'Music',
+            component: Music
+          }
+        ]
+      }
+    ]
+
+    export default new Router({
+      mode: 'history',
+      //base: 'admin',
+      routes
+
+    })
+    """
+
+  'children -> vue-router':
+    'prefix': 'vr-child',
+    'body': """
+    children: [
+      {
+        path: '/',
+        redirect: 'music'
+      },
+      {
+        path: 'music',
+        name: 'Music',
+        component: Music
+      }
+    ]
+    """
+
+  'one routes -> vue-router':
+    'prefix': 'vr-1',
+    'body': """
+    {
+      path: '/vr_1',
+      name: 'Hello',
+      component: Hello
+    }
+    """
+  'one child routes -> vue-router':
+    'prefix': 'vr-1child',
+    'body': """
+    {
+      path: 'vr_1',
+      name: 'Hello',
+      component: Hello
+    }
+    """
+
+  'mode -> vue-router':
+    'prefix': 'vr-mode',
+    'body': """
+     mode: 'history',
+    """
+  'base -> vue-router':
+    'prefix': 'vr-base',
+    'body': """
+     base: 'admin',
+    """
+
+  'routes -> vue-router (new)':
+    'prefix': 'vr-routes',
+    'body': """
+     routes
+    """
+
+  'redirect -> vue-router ':
+    'prefix': 'vr-redirect',
+    'body': """
+     redirect: 'music'
+    """

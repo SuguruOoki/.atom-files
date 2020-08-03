@@ -1,0 +1,10 @@
+blob-store
+compile-cache
+dev
+storage
+.apm
+.node-gyp
+.npm
+recovery/
+split-diff/
+data-atom-connections.cson

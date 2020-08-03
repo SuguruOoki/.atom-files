@@ -1,0 +1,100 @@
+{
+  "_from": "https://www.atom.io/api/packages/vk-terminal/versions/3.0.1/tarball",
+  "_id": "vk-terminal@3.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-B+JZFsZDDAoq2jzV7T3RYbcApvdE+0Mu7ucFKtWCUTPIPv3+XnYKWgd17a8bSxzpDCQm8SnBGVbJufVcgu9TaQ==",
+  "_location": "/vk-terminal",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/vk-terminal/versions/3.0.1/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/vk-terminal/versions/3.0.1/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/vk-terminal/versions/3.0.1/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/vk-terminal/versions/3.0.1/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/vk-terminal/versions/3.0.1/tarball",
+  "_shasum": "6826efe6bea7e0a520c28b5f6cfa21b9702a4736",
+  "_spec": "https://www.atom.io/api/packages/vk-terminal/versions/3.0.1/tarball",
+  "_where": "/private/var/folders/lz/kwk6m3316gv73_nzcz9djyvr0000gn/T/apm-install-dir-119631-31213-1jbi3d6.t5yn",
+  "activationHooks": [
+    "core:loaded-shell-environment"
+  ],
+  "author": {
+    "name": "Jeremy Ebneyamin"
+  },
+  "bugs": {
+    "url": "https://github.com/atom-repo/vk-terminal/issues"
+  },
+  "bundleDependencies": false,
+  "consumedServices": {
+    "status-bar": {
+      "versions": {
+        "^1.0.0": "consumeStatusBar"
+      }
+    }
+  },
+  "contributors": [
+    {
+      "name": "Ivan Kravets",
+      "email": "me@ikravets.com",
+      "url": "http://platformio.org"
+    },
+    {
+      "name": "Dmytro Kyrychuk",
+      "email": "dmytro.kyrychuck@gmail.com",
+      "url": "http://platformio.org"
+    }
+  ],
+  "dependencies": {
+    "atom-space-pen-views": "^2.1.0",
+    "pty.js": "https://github.com/platformio/pty.js/tarball/prebuilt",
+    "term.js": "https://github.com/jeremyramin/term.js/tarball/master",
+    "underscore": "^1.8.3"
+  },
+  "deprecated": false,
+  "description": "A terminal package for Atom, complete with themes, API and more for PlatformIO IDE. Fork of terminal-plus.",
+  "engines": {
+    "atom": ">=1.12.2 <2.0.0"
+  },
+  "homepage": "https://atom.io/packages/vk-terminal",
+  "keywords": [
+    "vk",
+    "terminal-plus",
+    "terminal",
+    "iterm",
+    "panel",
+    "pty",
+    "tty",
+    "xterm",
+    "iterm",
+    "iterm2",
+    "console",
+    "powershell"
+  ],
+  "license": "MIT",
+  "main": "./lib/vk-terminal",
+  "name": "vk-terminal",
+  "providedServices": {
+    "platformioIDETerminal": {
+      "description": "PlatformIO IDE Terminal API",
+      "versions": {
+        "1.1.0": "providePlatformIOIDETerminal"
+      }
+    },
+    "runInTerminal": {
+      "description": "Deprecated API for PlatformIO IDE 1.0",
+      "versions": {
+        "0.14.5": "provideRunInTerminal"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atom-repo/vk-terminal.git"
+  },
+  "version": "3.0.1"
+}

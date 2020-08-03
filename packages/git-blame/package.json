@@ -1,0 +1,67 @@
+{
+  "_from": "https://www.atom.io/api/packages/git-blame/versions/1.8.0/tarball",
+  "_id": "git-blame@1.8.0",
+  "_inBundle": false,
+  "_integrity": "sha512-dnSd85aPNZimcdtob/wjwlMHTQAA+bu4wakpQSOyPBuhU7UrP8ar4MCO/USo9neo6PB3Fj3Y+rVzNF3P8LM99Q==",
+  "_location": "/git-blame",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/git-blame/versions/1.8.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/git-blame/versions/1.8.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/git-blame/versions/1.8.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/git-blame/versions/1.8.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/git-blame/versions/1.8.0/tarball",
+  "_shasum": "e12ba71b1a4ad2a3b4a3645b58dd60ea382c3891",
+  "_spec": "https://www.atom.io/api/packages/git-blame/versions/1.8.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-1181011-3651-jnpkka.v8m5h",
+  "activationCommands": {
+    "atom-text-editor": [
+      "git-blame:toggle"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/alexcorre/git-blame/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "lodash": "^4.17.4",
+    "loophole": "1.0.x",
+    "moment": "^2.19.4",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "recompose": "^0.22.0"
+  },
+  "deprecated": false,
+  "description": "Toggle git-blame annotations in the gutter of atom editor.",
+  "devDependencies": {
+    "@workpop/eslint-config-workpop": "^1.0.0",
+    "eslint": "^4.7.2",
+    "fs-plus": "^3.0.1",
+    "standard-version": "^4.0.0",
+    "temp": "^0.8.3"
+  },
+  "engines": {
+    "atom": ">=1.0.0"
+  },
+  "homepage": "https://github.com/alexcorre/git-blame#readme",
+  "license": "MIT",
+  "main": "./lib/index",
+  "name": "git-blame",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexcorre/git-blame.git"
+  },
+  "scripts": {
+    "bump": "standard-version",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "test": "npm run lint"
+  },
+  "version": "1.8.0"
+}

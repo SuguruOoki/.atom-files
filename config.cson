@@ -1,0 +1,392 @@
+"*":
+  Hydrogen:
+    statusBarDisable: true
+  _dart:
+    _firstRun: true
+    _version: "1.0.1"
+  "atom-autocomplete-php":
+    autoloadPaths: [
+      "library/Pear/PEAR/Autoloader.php"
+    ]
+  "atom-beautify":
+    apex:
+      disabled: true
+    arduino:
+      disabled: true
+    c:
+      disabled: true
+    cfml:
+      disabled: true
+    clj:
+      disabled: true
+    coffeescript:
+      disabled: true
+    cpp:
+      disabled: true
+    crystal:
+      disabled: true
+    cs:
+      disabled: true
+    d:
+      disabled: true
+    ejs:
+      disabled: true
+    elm:
+      disabled: true
+    erb:
+      disabled: true
+    erlang:
+      disabled: true
+    fortran:
+      disabled: true
+    gherkin:
+      disabled: true
+    glsl:
+      disabled: true
+    gn:
+      disabled: true
+    go:
+      disabled: true
+    gohtml:
+      disabled: true
+    handlebars: {}
+    haskell:
+      disabled: true
+    jade:
+      disabled: true
+    java:
+      disabled: true
+    latex:
+      disabled: true
+    less:
+      disabled: true
+    lua:
+      disabled: true
+    marko:
+      disabled: true
+    mustache:
+      disabled: true
+    nunjucks:
+      disabled: true
+    objectivec:
+      disabled: true
+    ocaml:
+      disabled: true
+    pawn:
+      disabled: true
+    perl:
+      disabled: true
+    puppet:
+      disabled: true
+    python:
+      disabled: true
+    r:
+      disabled: true
+    riot:
+      disabled: true
+    ruby:
+      disabled: true
+    rust:
+      disabled: true
+    sass:
+      disabled: true
+    scss:
+      disabled: true
+    spacebars:
+      disabled: true
+    svg:
+      disabled: true
+    swig:
+      disabled: true
+    terraform:
+      disabled: true
+    tss:
+      disabled: true
+    tsx:
+      disabled: true
+    twig:
+      disabled: true
+    typescript:
+      disabled: true
+    ux:
+      disabled: true
+    vala:
+      disabled: true
+    verilog:
+      disabled: true
+    vhdl:
+      disabled: true
+    visualforce:
+      disabled: true
+    vue:
+      disabled: true
+    xml:
+      disabled: true
+    xtemplate:
+      disabled: true
+    yaml:
+      disabled: true
+  "atom-codesearch":
+    opts: "--ignore-dir application/caches_ux"
+  "atom-ctags":
+    GotoSymbolKey: [
+      "ctrl"
+    ]
+  "atom-fuzzy-grep":
+    detectGitProjectAndUseGitGrep: false
+    gitGrepCommandString: "ag"
+  "atom-linter-phpstan": {}
+  "atom-phpunit":
+    failuresAsNotifications: true
+    phpunitPath: "/Users/oki.suguru/dev-environment/core/tests/unit/phpunit.xml"
+    useVendor: false
+  "autocomplete-plus":
+    autoActivationDelay: 500
+    confirmCompletion: "enter"
+  core:
+    automaticallyUpdate: false
+    closeDeletedFileTabs: true
+    debugLSP: true
+    disabledPackages: [
+      "minimap-linter"
+      "minimap-git-diff"
+      "php-debug"
+      "jshint"
+      "whitespace"
+      "language-objective-c"
+      "language-c"
+      "language-clojure"
+      "language-csharp"
+      "language-go"
+      "language-make"
+      "language-mustache"
+      "language-perl"
+      "language-toml"
+      "about"
+      "grammar-selector"
+      "language-coffee-script"
+      "language-gfm"
+      "language-less"
+      "metrics"
+      "busy-signal"
+      "welcome"
+      "bookmarks"
+      "language-sass"
+      "language-xml"
+      "encoding-selector"
+      "dev-live-reload"
+      "autocomplete-paths"
+      "atom-ctags"
+      "markdown-mindmap"
+      "php-cs-fixer"
+      "language-json"
+      "foldingtext-for-atom"
+      "linter-jshint"
+      "linter-htmlhint"
+      "symbols-view"
+      "highlight-selected"
+      "htmlhint"
+      "php-unit-integrator"
+      "spl-file-templates"
+      "atom-mysql-snippets"
+      "tablr"
+      "dart"
+      "atom-typescript"
+      "regex-railroad-diagram"
+      "tree-view-git-branch"
+      "ide-typescript"
+      "spell-check"
+      "atom-autocomplete-php"
+      "open-on-github"
+      "sync-settings"
+      "linter-eslint"
+      "autocomplete-css"
+      "autocomplete-html"
+      "emmet"
+      "atom-commit-templates"
+      "atom-ide-ui"
+      "linter-php"
+      "language-java"
+      "language-plantuml"
+      "plantuml"
+      "minimap"
+      "minimap-bookmarks"
+      "run-command"
+      "snippet-generator-plus"
+      "deprecation-cop"
+      "language-typescript"
+      "click-link"
+      "editor-stats"
+      "merge-conflicts"
+      "incremental-search"
+      "Hydrogen"
+      "autosave"
+      "language-ruby"
+      "language-ruby-on-rails"
+      "language-rust-bundled"
+      "package-generator"
+      "background-tips"
+    ]
+    excludeVcsIgnoredPaths: false
+    followSymlinks: false
+    ignoredNames: [
+      ".git"
+      ".hg"
+      ".svn"
+      ".DS_Store"
+      "._*"
+      "Thumbs.db"
+      "desktop.ini"
+      "tags"
+      "ctags"
+      ".atom-redmine"
+    ]
+    packagesWithKeymapsDisabled: [
+      "atom-codesearch"
+    ]
+    projectHome: "/Users/oki.suguru/workplace/techbowl/"
+    telemetryConsent: "limited"
+    themes: [
+      "one-light-ui"
+      "one-dark-syntax"
+    ]
+    useTreeSitterParsers: false
+  dart:
+    sdkLocation: "/usr/local/opt/dart/libexec"
+  "data-atom":
+    openDetailsViewWhenOpeningMainResultsView: true
+    useQueryAtCursor: true
+  docblockr:
+    deep_indent: true
+    development_mode: true
+    return_description: false
+    short_primitives: true
+    spacer_between_sections: "after_description"
+  editor:
+    fontSize: 12
+    invisibles: {}
+    scrollPastEnd: true
+    showIndentGuide: true
+    showInvisibles: true
+    softWrap: true
+    tabLength: 4
+  "exception-reporting":
+    userId: "1fc013d5-f8b5-481c-bdce-b569a8d22d91"
+  "file-templates": {}
+  "find-and-replace": {}
+  "git-blame":
+    columnWidth: 258
+  "git-plus":
+    diffs:
+      useSplitDiff: true
+    experimental:
+      diffBranches: true
+    general: {}
+    remoteInteractions:
+      pullRebase: true
+  "goto-definition":
+    performanceMode: true
+  htmlhint:
+    hideOnNoErrors: true
+  "ide-php":
+    phpPath: "/usr/local/bin/php"
+  kite:
+    showWelcomeNotificationOnStartup: false
+  "linter-htmlhint":
+    enabledScopes: [
+      "text.html.angular"
+      "text.html.basic"
+      "text.html.gohtml"
+      "text.html.jsp"
+      "text.html.mustache"
+      "text.php"
+      ""
+    ]
+  "linter-javac": {}
+  "linter-php":
+    executablePath: "/usr/local/bin/php"
+  "linter-php7cc":
+    executablePath: "/Users/oki.suguru/.composer/vendor/sstalle/php7cc"
+  "linter-phpmd":
+    executablePath: "/usr/bin/php"
+    rulesOrConfigFile: [
+      "codesize"
+      "controversial"
+      "unusedcode"
+    ]
+  "linter-ui-default":
+    panelHeight: 300
+  "merge-conflicts": {}
+  minimap:
+    displayCodeHighlights: false
+    plugins:
+      bookmarks: true
+      bookmarksDecorationsZIndex: 0
+      "git-diff": true
+      "git-diffDecorationsZIndex": 0
+      linter: true
+      linterDecorationsZIndex: 0
+  "php-cs-fixer":
+    executeOnSave: true
+    phpExecutablePath: "/usr/bin/php"
+  "php-debug":
+    currentPanelMode: "bottom"
+  "php-unit-integrator":
+    "phpunit-path": "/usr/local/bin/phpunit"
+  "quick-query":
+    resultsInTab: true
+  redmine:
+    apiKey: "7d1495e90c0eeca4933f2c1c087f6575537822df"
+    host: "https://neprj.next-engine.com:10080/ld3sl/"
+  "run-command":
+    shellCommand: "/usr/local/bin/zsh"
+  "spell-check":
+    locales: [
+      "en-US"
+    ]
+    useLocales: false
+  "split-diff":
+    ignoreWhitespace: true
+    leftEditorColor: "red"
+    rightEditorColor: "green"
+    scrollSyncType: "Vertical + Horizontal"
+    syncHorizontalScroll: true
+  "symbols-tree-view": {}
+  "sync-settings":
+    _lastBackupHash: "34de27831327cf20c694e1344335cf9dbc8e4b07"
+    gistId: "d85154561b7f9c96dfd3bc3621f250a1"
+    personalAccessToken: "8c12d3b21a3813e8095f14c6998bbbd9becf3b80"
+    quietUpdateCheck: true
+  tablr:
+    csvEditor:
+      encoding: "Japanese (Shift JIS)"
+      eof: true
+    supportedCsvExtensions: [
+      "csv"
+      "tsv"
+      "CSV"
+      "TSV"
+      "txt"
+    ]
+    tableEditor: {}
+  "tree-view":
+    alwaysOpenExisting: true
+    autoReveal: true
+    hideIgnoredNames: true
+  "tree-view-git-branch": {}
+  "vim-mode-plus":
+    ignoreCaseForSearch: true
+  "web-search":
+    browser: {}
+  welcome:
+    showOnStartup: false
+  whitespace:
+    ensureSingleTrailingNewline: false
+    ignoreWhitespaceOnCurrentLine: false
+    keepMarkdownLineBreakWhitespace: false
+    removeTrailingWhitespace: false
+".editorconfig.source":
+  editor:
+    autoIndent: true
+    softWrap: true
+    softWrapAtPreferredLineLength: false

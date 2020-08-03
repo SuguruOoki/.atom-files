@@ -1,0 +1,69 @@
+# http://flight-manual.atom.io/using-atom/sections/basic-customization/#_cson
+
+'.html':
+
+    'CSS':
+        'prefix': 'css'
+        'body': '<link href="$1" rel="stylesheet">'
+
+    'JS':
+        'prefix': 'js'
+        'body': '<script src="$1"></script>'
+
+# CSS
+'.css':
+
+    'Media':
+        'prefix': 'media'
+        'body': '@media (max-width: $1px) {$2}'
+
+# JS
+'.js':
+    # for Debug in JavaScript
+    'Console log':
+        'prefix': 'log'
+        'body': 'console.log($1)'
+
+'.source.php':
+  # for Debug
+  'Debugging with var_dump':
+    'prefix': 'var'
+    'body':
+      'var_dump(\'<pre>\',$$1,\'\</pre>\');'
+  'Debugging with var_dump test':
+    'prefix': 'var_test'
+    'body':
+      'var_dump(\'<pre>\',\'test\',\'\</pre>\');'
+  'Debugging with transction':
+    'prefix': 'transaction'
+    'body':
+      'var_dump(\'<pre>\',\'PDO::inTransaction()\',\'\</pre>\');'
+  # function
+  'private function':
+    'prefix': 'pri'
+    'body': 'private function ${1:sample}(${2:Type} $${3:sample} = ${4:null}) {\n\t$${5:sample};$0\n}'
+  'protected function':
+    'prefix': 'pro'
+    'body': 'protected function ${1:sample}(${2:Type} $${3:sample} = ${4:null}) {\n\t$${5:sample};$0\n}'
+  'public function':
+    'prefix': 'pub'
+    'body': 'public function ${1:sample}(${2:Type} $${3:sample} = ${4:null}) {\n\t$${5:sample};$0\n}'
+  'construct':
+    'prefix': 'con'
+    'body': '${1:public }function __construct(${2:Type} $${3:foo} ${5:= ${6:null}}) {\n\t$this->${3:foo} = $${3:foo};$0\n}'
+  'is… function':
+    'prefix': 'is'
+    'body': '${1:public} function is${2:sample}(${3:Type} $${4:sample} = ${5:null}) {\n\tif ($${6:sample}) {\n\t}$${6:sample};$0\n}'
+  #'unittest private':
+  #    'prefix': 'private unit'
+  #    'body': '${1:public} function testMakeDirectoryIfSpecifiedUpToSecondArgument($params, $expectedResult)\n{\n    $this->callMethod('ne_file', 'makeDirectory', array($params['path'], $params['permission']));\n    \n    $actualResult = array(\n        'path'       => file_exists($params['path']),\n        // 8進数にフォーマットしている\n        'permission' => decoct(fileperms($params['path']) & 0777)\n    );\n    \n    $this->assertSame($expectedResult, $actualResult);\n}\n'
+  # define class property
+  'const …':
+    'prefix': 'const'
+    'body': 'const $1 = $2;'
+  'private …':
+    'prefix': 'private'
+    'body': 'private $1 = $2;'
+  'protected …':
+    'prefix': 'protect'
+    'body': 'protected $1 = $2;'

@@ -1,0 +1,25 @@
+'.platform-darwin atom-workspace':
+  'cmd-shift-t': 'vk-terminal:new'
+  'cmd-shift-j': 'vk-terminal:prev'
+  'cmd-shift-k': 'vk-terminal:next'
+  'cmd-shift-x': 'vk-terminal:close'
+  'cmd-alt-f': 'vk-terminal:focus'
+  'ctrl-enter': 'vk-terminal:insert-selected-text'
+  'ctrl-`': 'vk-terminal:toggle'
+
+'.platform-linux atom-workspace, .platform-win32 atom-workspace':
+  'alt-shift-t': 'vk-terminal:new'
+  'alt-shift-j': 'vk-terminal:prev'
+  'alt-shift-k': 'vk-terminal:next'
+  'alt-shift-x': 'vk-terminal:close'
+  'ctrl-enter': 'vk-terminal:insert-selected-text'
+  'ctrl-`': 'vk-terminal:toggle'
+  'ctrl-alt-f': 'vk-terminal:focus'
+
+'.platform-darwin .vk-terminal .terminal':
+  'cmd-c': 'vk-terminal:copy'
+  'cmd-v': 'vk-terminal:paste'
+
+'.platform-linux .vk-terminal .terminal, .platform-win32 .vk-terminal .terminal':
+  'alt-v': 'vk-terminal:paste'
+  'alt-c': 'vk-terminal:copy'

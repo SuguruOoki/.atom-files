@@ -1,0 +1,46 @@
+{
+  "_from": "https://www.atom.io/api/packages/editor-stats/versions/0.17.0/tarball",
+  "_id": "editor-stats@0.17.0",
+  "_inBundle": false,
+  "_integrity": "sha512-Pw6RJiFCBgzapr1mEEZ3rBpbCEDj0OfOy54Ta2IRwVLUzC3ix6yU5Yt7vWOXSI6Bd6OMCq/VKhmeJlLfxA4B1A==",
+  "_location": "/editor-stats",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/editor-stats/versions/0.17.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/editor-stats/versions/0.17.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/editor-stats/versions/0.17.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/editor-stats/versions/0.17.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/editor-stats/versions/0.17.0/tarball",
+  "_shasum": "685d58558f7d6890aadc4812468f619f48c9d305",
+  "_spec": "https://www.atom.io/api/packages/editor-stats/versions/0.17.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-1181020-24585-1uhj0i0.ye3k",
+  "bugs": {
+    "url": "https://github.com/atom/editor-stats/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "atom-space-pen-views": "^2.0.3",
+    "d3-browserify": "3.3.13",
+    "underscore-plus": "1.x"
+  },
+  "deprecated": false,
+  "description": "Display a graph of keyboard and mouse usage for the last 6 hours.",
+  "engines": {
+    "atom": "*"
+  },
+  "homepage": "https://github.com/atom/editor-stats#readme",
+  "license": "MIT",
+  "main": "./lib/editor-stats",
+  "name": "editor-stats",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atom/editor-stats.git"
+  },
+  "version": "0.17.0"
+}

@@ -1,0 +1,87 @@
+{
+  "_from": "https://www.atom.io/api/packages/atom-commit-templates/versions/0.3.0/tarball",
+  "_id": "atom-commit-templates@0.3.0",
+  "_inBundle": false,
+  "_integrity": "sha512-YS/R4sNyaXPgPuhVHb58D2gBjqF5ZR8WzCGM1AQuxLHk3Ilh/lLdtGw446c+GaeKjIk6kRb1wvjbQ9Y9zAVtyQ==",
+  "_location": "/atom-commit-templates",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/atom-commit-templates/versions/0.3.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/atom-commit-templates/versions/0.3.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/atom-commit-templates/versions/0.3.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/atom-commit-templates/versions/0.3.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/atom-commit-templates/versions/0.3.0/tarball",
+  "_shasum": "6b5b15f5f51fa4bf61bac74d25e64735dc47384f",
+  "_spec": "https://www.atom.io/api/packages/atom-commit-templates/versions/0.3.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-1181127-93089-pbk2x6.3mcbc",
+  "bugs": {
+    "url": "https://github.com/concon121/atom-commit-templates/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "@aki77/atom-input-dialog": "^1.0.0",
+    "atom-message-panel": "^1.2.4",
+    "jquery": "^3.0.0"
+  },
+  "deprecated": false,
+  "description": "Easily set custom git commit templates",
+  "devDependencies": {
+    "babel": "^6.5.2",
+    "babel-cli": "^6.9.0",
+    "babel-core": "^6.3.17",
+    "babel-preset-es2015": "^6.3.13",
+    "babel-register": "^6.9.0",
+    "codeclimate-test-reporter": "^0.4.1",
+    "eslint": "^3.19.0",
+    "eslint-config-standard": "^10.2.0",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-node": "^4.2.2",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "istanbul": "^1.0.0-alpha.2",
+    "jasmine": "^2.5.2",
+    "jasmine-focused": "^1.0.7",
+    "jshint": "^2.9.4"
+  },
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "homepage": "https://github.com/concon121/atom-commit-templates#readme",
+  "keywords": [
+    "git",
+    "commit"
+  ],
+  "license": "MIT",
+  "main": "./lib/index",
+  "name": "atom-commit-templates",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/concon121/atom-commit-templates.git"
+  },
+  "scripts": {
+    "coverage": "node ./node_modules/istanbul/lib/cli.js cover -v --include-all-sources -x **/atom/** node_modules/jasmine-focused/bin/jasmine-focused -R spec",
+    "es": "node ./node_modules/eslint/bin/eslint lib/*.js",
+    "jshint": "node ./node_modules/jshint/bin/jshint lib/*.js",
+    "quality": "npm run jshint && npm run es",
+    "test": "node ./node_modules/jasmine-focused/bin/jasmine-focused spec"
+  },
+  "standard": {
+    "globals": [
+      "atom",
+      "beforeEach",
+      "describe",
+      "expect",
+      "it",
+      "module",
+      "require",
+      "spyOn"
+    ]
+  },
+  "version": "0.3.0"
+}

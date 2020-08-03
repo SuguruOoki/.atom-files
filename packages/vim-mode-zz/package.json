@@ -1,0 +1,64 @@
+{
+  "_from": "https://www.atom.io/api/packages/vim-mode-zz/versions/0.2.0/tarball",
+  "_id": "vim-mode-zz@0.2.0",
+  "_inBundle": false,
+  "_integrity": "sha512-fBD1BqCbMNOlVvc7xIyQpCjiioLe/YQ73zIOdxj/P/epiexBK2XAwpNoC6/nofXl0W8/gd/yyAfsxpJsmTKlvg==",
+  "_location": "/vim-mode-zz",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/vim-mode-zz/versions/0.2.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/vim-mode-zz/versions/0.2.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/vim-mode-zz/versions/0.2.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/vim-mode-zz/versions/0.2.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/vim-mode-zz/versions/0.2.0/tarball",
+  "_shasum": "a56be67704cd991297dd49cb6a90c2ad6eb3c495",
+  "_spec": "https://www.atom.io/api/packages/vim-mode-zz/versions/0.2.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-11935-44711-12msbg.7bd86",
+  "bugs": {
+    "url": "https://github.com/sQu1rr/vim-mode-zz/issues"
+  },
+  "bundleDependencies": false,
+  "coffeelintConfig": {
+    "indentation": {
+      "level": "error",
+      "value": 4
+    },
+    "line_endings": {
+      "value": "unix",
+      "level": "error"
+    }
+  },
+  "consumedServices": {
+    "vim-mode": {
+      "versions": {
+        "^0.1.0": "consumeVim"
+      }
+    }
+  },
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Allows to close opened tabs with Vim's ZZ command",
+  "engines": {
+    "atom": ">=1.19.0 <2.0.0"
+  },
+  "homepage": "https://github.com/sQu1rr/vim-mode-zz#readme",
+  "keywords": [
+    "vim",
+    "vim-mode",
+    "ZZ"
+  ],
+  "license": "MIT",
+  "main": "./lib/vim-mode-zz",
+  "name": "vim-mode-zz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sQu1rr/vim-mode-zz.git"
+  },
+  "version": "0.2.0"
+}

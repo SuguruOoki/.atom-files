@@ -1,0 +1,78 @@
+# Your keymap<status></status>
+#
+# Atom keymaps work similarly to style sheets. Just as style sheets use
+# selectors to apply styles to elements, Atom keymaps use selectors to associate
+# keystrokes with events in specific contexts. Unlike style sheets however,
+# each selector can only be declared once.
+#
+# You can create a new keybinding in this file by typing "key" and then hitting
+# tab.
+#
+# Here's an example taken from Atom's built-in keymap:
+#
+# 'atom-text-editor':
+#   'enter': 'editor:newline'
+#
+# 'atom-workspace':
+#   'ctrl-shift-p': 'core:move-up'
+#   'ctrl-p': 'core:move-down'
+#
+# You can find more information about keymaps in these guides:
+# * http://flight-manual.atom.io/using-atom/sections/basic-customization/#customizing-keybindings
+# * http://flight-manual.atom.io/behind-atom/sections/keymaps-in-depth/
+#
+# If you're having trouble with your keybindings not working, try the
+# Keybinding Resolver: `Cmd+.` on macOS and `Ctrl+.` on other platforms. See the
+# Debugging Guide for more information:
+# * http://flight-manual.atom.io/hacking-atom/sections/debugging/#check-the-keybindings
+
+# This file uses CoffeeScript Object Notation (CSON).
+# If you are unfamiliar with CSON, you can read more about it in the
+# Atom Flight Manual:
+# http://flight-manual.atom.io/using-atom/sections/basic-customization/#configuring-with-cson
+
+'atom-workspace':
+    'ctrl-@': 'atom-terminal:open-project-root'
+
+'atom-text-editor':
+    'ctrl-i': 'editor:auto-indent'
+    'ctrl-shift-f': 'code-search:toggle'
+    # 'ctrl-]': 'symbols-view:go-to-declaration'
+    # 'ctrl-]': 'symbols-tree-view:toggle'
+    '': 'kite:docs-at-cursor'
+    'ctrl-t': 'symbols-view:return-from-declaration'
+    'ctrl-shift-h': 'vim-mode-plus:previous-tab'
+    'ctrl-shift-l': 'vim-mode-plus:next-tab'
+    'ctrl-shift-s':	'core:save'
+    # 'ctrl-r': 'tree-view:toggle'
+    # 'ctrl-r': 'run-command:run'
+    # 'ctrl-shift-]': 'redmine:my-issues'
+    'ctrl-shift-d': 'data-atom:toggle-results-view'
+    'ctrl-shift-[': 'split-diff:toggle'
+    'ctrl-shift-q': 'git-blame:toggle'
+    'ctrl-shift-g': 'github:toggle-git-tab'
+    'ctrl-@': 'platformio-ide-terminal:new'
+    'ctrl-shift-@': 'platformio-ide-terminal:close'
+    'alt-c': 'script:close-view'
+    'alt-r': 'script:run'
+    'ctrl-]': 'goto-definition:go'
+    'ctrl-shift-b': 'git-blame:toggle'
+    'ctrl-k ctrl-l': 'pane:split-right-and-copy-active-item'
+    'ctrl-k ctrl-h': 'pane:split-left-and-copy-active-item'
+    'ctrl-k ctrl-j': 'pane:split-down-and-copy-active-item'
+    'ctrl-k ctrl-k': 'pane:split-up-and-copy-active-item'
+    'ctrl--': 'editor:toggle-line-comments'
+    'ctrl-9': 'github:toggle-git-tab-focus'
+    'ctrl-shift-9': 'github:toggle-git-tab'
+    'ctrl-e': 'find-and-replace:use-selection-as-find-pattern'
+    'alt-b': 'bookmarks:toggle-bookmark'
+# autocomplete-plusに利用する
+'atom-text-editor.autocomplete-active':
+    'tab': 'unset!'
+    'ctrl-shift-a': 'autocomplete-plus:confirm'
+
+'body atom-text-editor.autocomplete-active':
+    'pageup': 'autocomplete-plus:page-up'
+    'pagedown': 'autocomplete-plus:page-down'
+    'home': 'autocomplete-plus:move-to-top'
+    'end': 'autocomplete-plus:move-to-bottom'

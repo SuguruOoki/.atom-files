@@ -1,0 +1,2739 @@
+<?php
+/**
+ * csvから受注テーブルにインポートする機能
+ *　
+ * ※顧客のマスク処理とテンプテーブル作成が入っているから、本番は抜く
+ *   外す所　include1箇所 : arraytoJyuchutable()4箇所です。
+ * ※webサーバとdbサーバの往復になるので大きい
+ * 　Csvファイルは極力細切れにする。
+ *
+ * 各項目は、「半角カタカナ」を「全角カタカナ」に変換し、「全角」英数字を「半角」に変換します。
+ *　例外項目　　備考、商品名
+ *
+ *
+ */
+require_once('MyClass/ne_Tenpo.php');
+require_once('MyClass/ne_Syohin.php');
+require_once('MyClass/ne_Hasou.php');
+require_once('MyClass/ne_JyuchuCsvDefault.php'); // 規定値設定
+require_once('MyClass/ne_JyuchuCsvBikouCnv.php'); // 備考変換
+require_once('MyClass/ne_JyuchuHanbaibiUpd.php'); // 商品マスタ販売日の更新
+require_once('MyClass/ne_JyuchuPicSaisyoSelect.php'); // pic用仕入コード取得
+require_once('MyClass/ne_JdataChk.php'); // 受注データの整合性チェック
+require_once('MyClass/ne_koumokuKeisan.php'); // 税抜価格　計算用
+require_once('MyClass/ne_biddersCnv.php'); // ビッダーズ専用処理
+require_once('MyClass/ne_rakutenCnv.php'); // 楽天専用処理
+require_once('MyClass/ne_SetSyohin.php'); // セット商品
+require_once('MyClass/ne_DateSet.php'); // 自動日付算出
+require_once('MyClass/ne_JyuchuTag.php'); // 受注分類タグのセット
+require_once('MyClass/customize/common/ne_commonJyuchutorikomiPost.php'); // 受注CSV取込後カスタマイズ
+require_once('MyClass/ne_registSyohinFromJyuchu.php'); // 受注から商品情報自動作成
+require_once('MyClass/ne_syohinCodeHimoduke.php'); // 商品コード紐付け
+require_once('MyClass/ne_alertHitSyohin.php'); // ヒット商品お知らせ
+require_once('MyClass/ExternalApi/Mall.php'); // 外部API連携のモール共通クラス
+require_once('MyClass/ne_jyuchuLog_create.php'); // 受注ログ内容作成クラス
+require_once('MyClass/ne_jyuchuUniqCtl.php'); // 同時受注重複取込制御
+require_once('models/JyuchuHeader.php');
+require_once('models/JyuchuHeaderSub.php');
+require_once('models/JyuchuMeisai.php');
+require_once('models/Kbn/Mall.php');
+require_once('models/Kbn/Siharai.php');
+require_once('models/Kigyo.php');
+
+class ne_JinportHandler{
+	private $db;
+	private $user_schema;
+	private $log;
+
+	// tantouというプロパティですが実際はtantou_codeを扱っています
+	// set_tantouメソッドも同様にtantou_codeのセッターであり、担当者に関するオブジェクトを渡しているわけではないので注意
+	private $tantou;
+	function set_tantou($tantou) {
+		$this->tantou = $tantou;
+	}
+
+	function set_db($db){$this->db=$db;}
+	function set_user_schema($user_schema){$this->user_schema=$user_schema;}
+	function set_log($log){$this->log=$log;}
+
+	private $kigyo_zei_kbn;//企業税区分
+	private $zeiRitu_int;//税率
+	private $hasu_syori_kbn;//小数点区分
+	private $kigyo_code;//赤い実対応
+	function set_kigyo_zei_kbn($kigyo_zei_kbn){$this->kigyo_zei_kbn=$kigyo_zei_kbn;}
+	function set_zeiRitu_int($zeiRitu_int){$this->zeiRitu_int=$zeiRitu_int;}
+	function set_hasu_syori_kbn($hasu_syori_kbn){$this->hasu_syori_kbn=$hasu_syori_kbn;}
+	function set_kigyo_code($kigyo_code){$this->kigyo_code=$kigyo_code;}//赤い実対応
+	private $login_id;//個別対応用 login_id(7桁)
+	function set_login_id($login_id){$this->login_id = $login_id;}
+
+	private $ptn_format_code;
+	function set_ptn_format_code($ptn_format_code){$this->ptn_format_code=$ptn_format_code;}
+	function get_ptn_format_code(){ return($this->ptn_format_code) ;}
+
+	private $tablenameH_str;//受注ヘッダーテーブル名を格納
+	private $tablenameM_str;//受注明細テーブル名を格納
+
+//テーブルに格納する時にはこの項目に入れる。
+	private $param_array;
+
+	private $tmpRow_array;//テンプテーブルの全データを格納
+	function set_tmpRow_array($tmpRow_array){$this->tmpRow_array=$tmpRow_array;}//受注データを連想配列で持ってこれるモール用のセッター
+	private $tmpRow_arrayOne;//テンプテーブルの1件分データを格納
+	private $moruExtcol_array;//モール独自項目名の格納先
+
+	private $csvhmstRow_array;//csv変換マスタ格納用
+	private $csvHmstColcnt_int;//csv変換マスタ項目数
+	private $table_name;//csv変換マスタのテーブル名指定の為
+	private $cnvTablename_str;//削除フラグ更新対象テーブルを格納
+	private $delTablename_str;//削除フラグが有効なデータを削除するテーブルを格納
+
+	private $csvRow_array;//csvの先頭行を格納
+	private $csvColcnt_int;//csvの列数を格納
+	function set_csvRow_array($csvRow_array){$this->csvRow_array=$csvRow_array;}
+	function set_csvColcnt_int($csvColcnt_int){$this->csvColcnt_int=$csvColcnt_int;}
+
+	private $loadFilepath_str;//ロード元ファイルパス格納
+	private $tmpTablename_str;//テンプテーブル名格納
+	function set_loadFilepath_str($loadFilepath_str){$this->loadFilepath_str=$loadFilepath_str;}
+	function set_tmpTablename_str($tmpTablename_str){$this->tmpTablename_str=$tmpTablename_str;}
+
+	private $meisaiGyo_int;//明細行格納
+	private $HeaderWriteFlg_str;//受注ヘッダーを書き込むかを見分けるフラグ
+	private $wkTenpoDenpyono_str;//店舗伝票番号の退避領域
+	private $oyaTenpoDenpyono_str;//複数配送親受注番号格納
+	private $headerChkcol_array;//配送先が違う受注を見分ける項目名を格納
+	private $wk_writeCheck_str;//配送先が違う条件を格納
+	private $kbnCnvcode_str;//区分名から変換されたコードが入る
+	private $wkJyuchuno_int;//ヘッダー追加時に取得出来るNE受注番号
+	function get_wkJyuchuno_int(){return $this->wkJyuchuno_int;}
+
+	private $wkJyuchuno_array;//今回取り込み処理した対象の伝票番号
+	function get_wkJyuchuno_array(){return $this->wkJyuchuno_array;}
+	private $wkJlc_array;    //今回取り込み処理した対象の伝票番号のne_jyuchuLog_createクラスのオブジェクト
+
+	private $wk_jyuchuMErr_msg;//明細システムメッセージに入るエラー区分の累積を格納
+	private $jyuchuErrM_msg;//明細のデータチェックを重複除いてヘッダーに書き込む為の領域
+	private $jyuchuErrH_msg;//ヘッダーのデータチェックを格納
+	private $errLine_int;//エラー行表示用カウンター
+	private $wktmpRow_value;//区分マスタから変換するモジュールに渡すデータ　
+	private $wktable_koumoku_name;//区分マスタから変換するモジュールに渡すデータが入っている項目　
+	private $hukusuujyuchuFlg_str;//複数配送先受注を見分けるフラグ
+	private $hukusuhaisou_no;//複数配送の連番
+
+	private $duplicate_flg;//受注重複判断
+	private $duplicate_tenpo_denpyo_no;//受注重複対象伝票ナンバー
+	function get_duplicate_tenpo_denpyo_no(){return $this->duplicate_tenpo_denpyo_no;}
+	private $duplicateJyuchu_array;//重複受注エラーメッセージ格納
+
+	private $tenpoCode_int;//店舗コードを格納
+	function set_tenpoCode_int($tenpoCode_int){$this->tenpoCode_int=$tenpoCode_int;}
+	private $mail_able_flg;//受注メールから有効化するためのフラグ
+	function set_mail_able_flg($mail_able_flg){$this->mail_able_flg=$mail_able_flg;}
+	private $ptnCode_int;
+	function set_ptnCode_int($ptnCode_int){
+		$this->ptnCode_int=$ptnCode_int;
+		$sql_select="SELECT tenpo_code FROM $this->user_schema.t_mst_csv_torikomi_taiou
+					 WHERE ptn_code =?
+					 GROUP BY tenpo_code";
+					 $aryParam = array($this->ptnCode_int);
+		$this->tenpoCode_int = $this->db->fetchOne($sql_select, $aryParam);
+	}
+
+	function get_moruCode_int(){return $this->param_array['moru_code'];}
+
+	private $result_array;
+	function get_result_array(){return $this->result_array;}
+
+	private $logTablename_str;
+
+	private $wkmailMeisai;//メールデータが先に取り込まれていた場合ココに引当数を退避する。
+	private $wkjyuchu_cancel_kbn;//メール取込時受注キャンセルされていた時の明細キャンセルの対応に必要
+	private $setsyohin_array;//セット商品マスタ展開後の構成商品が格納(1商品)
+
+	private $set_syohin_expands_info_array; // １受注伝票分の「展開前のセット商品と展開後の商品情報」の配列
+	function get_set_syohin_expands_info_array(){return $this->set_syohin_expands_info_array;}
+
+	private $ctz_jyuchutorikomi_post_list ; // 受注取込カスタマイズクラスのリスト
+	function setCtzJyuchutorikomiPost( $ctz_jyuchutorikomi_post_list){$this->ctz_jyuchutorikomi_post_list = $ctz_jyuchutorikomi_post_list; }
+
+	private $all_in_one_flg;//オールインワン取込用のフラグ
+	function set_all_in_one_flg($all_in_one_flg='XX'){$this->all_in_one_flg=$all_in_one_flg;}
+
+	private $api_flg;//受注API取込用のフラグ
+	function set_api_flg($api_flg='XX'){$this->api_flg=$api_flg;}
+
+	private $import_log_message = 'CSVから取り込まれました' ;
+	function setImportLogMessage($import_log_message){$this->import_log_message=$import_log_message;}
+
+	private $regist_syohin_from_jyuchu = NULL ;
+
+	//複数明細受注の際に、2行目以降にギフトフラグを渡すよう対応する一時変数。
+	private $tmp_jyuchu_denpyo_no = '';
+	private	$tmp_gift_flg = '';
+	//支払発送変換する区分
+	private $siharai_hasou_henkan_array = array('siharai_kbn','hasou_kbn','credit_kbn');
+	function set_siharai_hasou_henkan_array($siharai_hasou_henkan_array){$this->siharai_hasou_henkan_array=$siharai_hasou_henkan_array;}
+
+	// 受注メール取り込み済みとするか？のフラグ。true:受注メール取り込み済みとする false:CSV取り込み済みとする。
+	//
+	// これはYahooオークション全自動アプリのみ対象としたフラグですが、それ以外でも使えるようになっています。
+	// 以下の注意事項があります。
+	// 現在trueにすると受注伝票有効化の際、金額が２重で計算されてしまう不具合が見つかっています。
+	// (メイン機能では店舗側の金額から企業側の税区分の金額に変換する処理は１回のみが前提になっているため。）
+	//
+	// 詳細:以下の×が計算が狂うケース(Yahooオクは有効化が出来ないので発生しない)
+	//  ○メール(店舗設定の金額) -> 本来のメール取り込み処理(店舗設定の金額) -> 有効化(企業設定の金額に変換) = 1回のみ計算され正しい値
+	//  ○CSV(店舗設定の金額) -> 受注メール取り込み済みにするCSV取り込み(企業設定の金額に変換) -> CSV(店舗設定の金額) -> CSV取り込み(企業設定の金額に変換) = 1回のみ計算され正しい値
+	//  ×CSV(店舗設定の金額) -> 受注メール取り込み済みにするCSV取り込み(企業設定の金額に変換) -> 有効化(企業設定の金額に変換) =2回計算され不正な値
+	private $is_mail_torikomi = false ;
+	function setIsMailTorikomi($is_mail_torikomi){$this->is_mail_torikomi=$is_mail_torikomi;}
+
+	//合計金額 <= ポイントの場合、ポイント全額支払判定をするかを設定
+	private $is_set_siharai_kbn = true;
+
+	// 以下のdup_xxxは2重取込検知＆原因調査用の変数。原因が解明できたら削除すること。
+	private $dup_tenpo_code_array = array() ;
+	private $dup_tenpo_denpyo_no_array = array() ;
+	private $dup_debug_text = '' ;
+	private $dup_uid = '' ;
+
+	function __construct(){
+		$this->dup_uid = uniqid() ;
+
+		$this->paramInit();
+		$this->errMsgInit();
+		$this->tablenameH_str="t_trn_jyuchu_header";
+		$this->tablenameM_str="t_trn_jyuchu_meisai";
+		$this->headerChkcol_array=array('jyuchu_jyusyo1','jyuchu_jyusyo2','hasou_name','hasou_jyusyo1','hasou_jyusyo2');
+		$this->table_name="";
+		$this->wkJyuchuno_array=array();
+
+		$this->duplicate_flg='0';
+		$this->duplicate_tenpo_denpyo_no=array();
+		$this->duplicateJyuchu_array=array();
+
+		$this->wkjyuchu_cancel_kbn='0';
+		$this->logTablename_str="t_log_jyuchu";
+		$this->result_array['ret']['mes']=array();//結果メッセージ用
+		$this->result_array['ret']['jyuchu_cnt']=0;//受注件数カウント用
+		$this->setsyohin_array=array();
+		$this->ctz_jyuchutorikomi_post_list = array() ;
+		$this->set_syohin_expands_info_array = array() ;
+		$this->mail_able_flg='';
+		$this->all_in_one_flg='';
+	}//end function
+
+	/**
+	 * csvからテンプテーブルへ入れる処理
+	 */
+	function csvtoTemptable(){
+		$this->tmpTable_Create();
+		$this->tmpTable_Loader();
+	}
+
+	/**
+	 * テンプテーブルから連想配列へ出す処理
+	 */
+	function temptabletoArray(){
+		$this->tmpTable_Select();
+	}
+
+	/**
+	 * 受注テーブルへインサート(メイン処理）
+	 * 受注番号が同じで出荷先住所が違う場合は、新しい受注としてinsert
+	 * 受注番号が違う場合は、新しい受注としてinsert
+	 */
+	function arraytoJyuchutable(){
+
+		try{
+			$this->result_array['ret']['code']='0';
+			$jdc=new ne_JdataChk();//取込データのチェックモジュールのインスタンスを作ってます。
+			$jdc->set_db($this->db);
+			$jdc->set_user_schema($this->user_schema);
+			$jdc->setIsMailTorikomi($this->is_mail_torikomi);
+
+			$dateSet = new ne_DateSet();
+			$dateSet->setDbSources($this->db, 'ne_system', $this->user_schema,0);
+
+			// 商品マスタ自動生成が有効な場合、メンバに商品マスタ自動生成のロジッククラスを設定しておく
+			if( ne_registSyohinFromJyuchu::isAutoRegist($this->db, $this->user_schema)) {
+				$this->regist_syohin_from_jyuchu = new ne_registSyohinFromJyuchu(
+										$this->db
+										, $this->user_schema
+										, $this->kigyo_code
+										, $this->tenpoCode_int
+										, $this->tantou
+										) ;
+			}
+
+			$this->_getTenpoMst();//国コードとモールコードget
+			$tmpRowarrayCnt_int=count($this->tmpRow_array);
+			$this->result_array['ret']['csv_cnt']=0;
+			try{$this->db->beginTransaction();}catch(Exception $e){}
+			for($i=0;$i<$tmpRowarrayCnt_int;$i++){
+				$before_syohin_code = '';
+				$before_kanri_no = '';
+				$this->paramInit();//初期化
+				$this->tmpRow_arrayOne = $this->tmpRow_array[$i];//一件リード
+				$this->result_array['ret']['csv_cnt']++;//行数カウント
+
+				if($this->isAllInOneHeaderSet()){
+					//連想配列をtmpRow_array→param_array なのでココで一度にヘッダーと明細の項目の移送が完了
+					$this->param_array['tenpo_code'] = $this->tenpoCode_int;
+					foreach($this->tmpRow_arrayOne as $key=>$value){
+						$this->param_array[$key] = $value;
+					}
+				}else{
+					$this->table_name = $this->tablenameH_str;
+					$this->csvhenkanM_Select(); // 変換マスタから受注ヘッダー用の情報取得
+					$this->jyuchuH_Insert(); // ヘッダー項目を移送
+				}
+
+				// 受注重複取込防止
+				$jyuchu_uniq_ctl = new ne_jyuchuUniqCtl($this->user_schema, $this->db);
+				$this->duplicateJyuchu_chk($jyuchu_uniq_ctl);
+				if($this->duplicate_flg === '1'){ continue ; }
+
+				if($this->isAllInOneHeaderSet()){
+					//オールインワン取込パターンの場合、支払発送変換設定を実行する。
+					//CSVに変換用の取込用の項目があるのに空の場合、または支払発送変換設定にCSVの値が無い場合に、エラーを出力する。
+					if ($this->all_in_one_flg === 'XX'){
+						$this->convHenkanCode();
+						if(mb_strlen(trim($this->param_array['wk_sagyosya_ran'])) !== 0){
+							//作業用欄の文言もアップロード結果に出てくるけどとりあえずこのまま。
+							$henkanErrMsg=$this->param_array['sagyosya_ran'];
+							array_push($this->result_array['ret']['mes'], "受注番号：" . $this->param_array['tenpo_denpyo_no'] . "\n\n　" . $henkanErrMsg . "\n");//取込エラーの内容を表示
+						}
+					}
+				}else{
+					if(mb_strlen(trim($this->param_array['wk_sagyosya_ran'])) !== 0){
+						$henkanErrMsg=$this->param_array['sagyosya_ran'];
+						array_push($this->result_array['ret']['mes'], "受注番号：" . $this->param_array['tenpo_denpyo_no'] . "\n\n　" . $henkanErrMsg . "\n");//取込エラーの内容を表示
+					}
+				}
+
+				//APIによる受注取込処理の場合、支払発送変換設定を実行する。
+				if ($this->api_flg === 'XX'){ $this->convHenkanCode(); }
+
+				//合計金が渡ってこないモールの対応
+				if($this->param_array['goukei_kin'] * 1 === 0 && $this->param_array['siharai_kbn'] !== Models_Kbn_Siharai::POINT_TOTAL && $this->isGoukeiKinRecalculationMall($this->param_array['moru_code'])){
+					$this->param_array['goukei_kin'] = $this->param_array['zei_kin'] + $this->param_array['syohin_kin'] + $this->param_array['tesuryo_kin'] + $this->param_array['hasou_kin'] + $this->param_array['sonota_kin'] - $this->param_array['point'];
+				}
+
+				$this->cancelJyuchu_chk();//受注キャンセルの受注に取り込んだときの警告
+				$this->HeaderWrite_Check();//別受注か配送先が別の場合受注を分ける処理
+				//ヘッダーインサート処理
+				if($this->HeaderWriteFlg_str == "1" ){
+					if($this->wkJyuchuno_int!=''){
+						$this->jyuchuHerr_update();//受注が変わる直前に受注の明細エラーをヘッダーのシステムメッセージに書き込み
+					}
+
+					$this->errMsgInit();//システムメッセージ用退避領域クリア
+					$this->mailData_Chk();//メール情報確認
+
+					if($this->result_array['ret']['code']==='1'){
+						break;
+					}
+
+					$this->bikouCnv();//備考変換
+					$this->defaultSet();//店舗別規定設定
+					$this->jyuchu_data_trim();//住所や電話番号などの空白や-を抜いています。
+
+					//発送方法変換
+					$hh=new ne_Hasou();
+					$this->param_array=$hh->hasouHantei($this->param_array);
+
+					//発送伝票の出力の関係上　郵便（代）と郵便（クレ）に分ける処理
+					if($this->param_array['hasou_kbn']=='40'){
+						if($this->param_array['siharai_kbn']!== '1'){
+							$this->param_array['hasou_kbn']='41';
+						}
+					}
+
+					//確認内容チェック
+					$jdc->set_param_array($this->param_array);
+					$jdc->JdataH_Chk();//ここで引っ掛かったら要判断待ち
+
+					//発送方法変換
+					$this->jyuchuErrH_msg=$jdc->get_errMsgkbn_str();
+					$this->param_array=$jdc->get_param_array();//同梱元受注番号、受注状態区分をGET
+
+					//英数は半角にカナは全角に変換　　但し「備考」「商品名」「商品オプション」は除く
+					if($this->param_array['kuni_code']==='1'){
+						foreach($this->param_array as $key => $value){
+							if($key!='bikou' && $key!='syohin_name' && $key!='syohin_option' && $key!='sagyosya_ran'){
+								if($key=='syohin_code'){
+									$before_syohin_code = $value;
+									$wkvalue = mb_convert_kana($value, "a");
+								}else{
+									// FIXME: ここの処理を剥がした場合、ne_all_in_one_biddersCnvクラスのkanri_noのキーも必要なくなる。
+									// ne_all_in_one_biddersCnvの$jyuchu_arrayのkanri_noは本来NEのDBに登録する際に必要のないキーであるため、
+									// 削除するべき。
+									if ($key == 'kanri_no' && (int)$this->param_array['moru_code'] === Models_Kbn_Mall::DENA){
+										$before_kanri_no = $value;
+									}
+									$wkvalue = mb_convert_kana($value, "KVa");
+								}
+								$this->param_array[$key]=$wkvalue;
+							}
+						}
+					}
+
+					//クレジットカード番号を暗号化する。
+					$wk_encode_card_no=(str_replace(' ','',(trim($this->param_array['credit_card_no']))));
+					if(is_numeric($wk_encode_card_no)){
+						$this->param_array['credit_card_no']=$this->db->encrypt($wk_encode_card_no);
+					}
+
+					//楽天バンク　手数料処理
+					$rkt=new ne_rakutenCnv();
+					$rkt->set_param_array($this->param_array);
+					$rkt->rakutenBank_tesuryo();
+					$this->param_array=$rkt->get_param_array();
+
+					//納品書印刷指示日、出荷予定日自動算出処理
+					$date_set_tenpo_code = $this->param_array['tenpo_code'];
+					$date_set_haisou_bi = $this->param_array['haisou_bi'];
+					$date_set_jyuchu_bi = $this->param_array['jyuchu_bi'];
+					$date_set_torikomi_bi = $this->param_array['torikomi_bi'];
+					$date_set_jyusyo = $this->param_array['wk_hasou_jyusyo'];
+
+					$dateSet->setJyuchuData($date_set_tenpo_code, $date_set_haisou_bi, $date_set_jyuchu_bi, $date_set_torikomi_bi, $date_set_jyusyo);
+					$dateSetRes = $dateSet->dateCalc();
+					if ($dateSetRes['nouhinsyo_insatusiji_bi'] != '') {
+						$this->param_array['nouhinsyo_insatusiji_bi'] = $dateSetRes['nouhinsyo_insatusiji_bi'];
+					}
+					if ($dateSetRes['syuka_yotei_bi'] != '') {
+						$this->param_array['syuka_yotei_bi'] = $dateSetRes['syuka_yotei_bi'];
+					}
+
+                    // Amazonマケプレプライムでプライム配送で、
+                    // 納品書印刷指示日と出荷予定日への自動設定をクリアする
+                    // ※この処理に入るのは、配送希望日＝なし（is_prime=trueの場合必ず未入力）となる
+                    // 　配送希望日が無い場合の当該２項目には、「基準日＋日数」か「基準日と同日」が入るが、
+                    // 　（基準日は自動日付登録の設定により、受注日または取込日のいずれかとなる）
+                    //　プライム配送だった場合に、自動日付登録機能で設定している日数によっては、
+                    //　プライム規約を満たせ無いケース（日数に3以上が設定された場合が危険）が出てくるため、
+                    //　強制的に値を消去している
+                    if((int)$this->param_array['moru_code'] === Models_Kbn_Mall::AMAZON &&
+                            isset($this->param_array['is_prime']) && $this->param_array['is_prime'] === 'true'){
+                        // 納品書印刷指示日
+                        if ($dateSetRes['nouhinsyo_insatusiji_bi'] !== '') {
+                            $this->param_array['nouhinsyo_insatusiji_bi'] = '';
+                        }
+
+                        // 出荷予定日
+                        if ($dateSetRes['syuka_yotei_bi'] !== '') {
+                            $this->param_array['syuka_yotei_bi'] = '';
+                        }
+                    }
+
+					$header_sub = new Models_JyuchuHeaderSub($this->user_schema, $this->db);
+					if($this->param_array['upd_flg']==='0'){
+						//ヘッダーおよびヘッダーサブに行追加
+						$this->jyuchuHinsert2();
+						$this->wkJyuchuno_int = $this->db->lastInsertId();
+						$header_sub->insertJyuchuHeaderSub($this->tantou, $this->wkJyuchuno_int, $this->param_array);
+					}else{
+						$this->wkJyuchuno_int=$this->param_array['jyuchu_denpyo_no'];
+						$this->jyuchuHupdate2();
+						$this->jyuchuHupdate3();
+
+						//ヘッダーサブにデータがあれば更新
+						$model = $header_sub->find($this->wkJyuchuno_int, true);
+						if (!is_null($model)) {
+							$model->set($this->param_array);
+							//受注取込は最初にsakujyo_flgを1にしているので、0をセットしないとt_trn_jyuchu_header_sub.sakujyo_flgが1で更新される。
+							$model->set('sakujyo_flg', '0');
+							$model->update($this->tantou);
+						}
+					}
+
+					//受注分類タグ情報登録
+					if(strlen($this->param_array['jyuchu_tag']) !== 0){
+						$j_tag = new ne_JyuchuTag();
+						$j_tag->setDb($this->db);
+						$j_tag->setSchema($this->user_schema);
+						$j_tag->setSakuseiTantou($this->tantou);
+						$j_tag->updateTags($this->wkJyuchuno_int,$this->param_array['jyuchu_tag']);
+					}
+				}
+
+				//明細インサート処理
+				if($this->isAllInOneHeaderSet()){
+					$this->param_array['jyuchu_meisai_gyo'] = $this->meisaiGyo_int;
+					$this->param_array['jyuchu_denpyo_no'] = $this->wkJyuchuno_int;
+					$this->meisai_data_trim();
+				}else{
+					$this->table_name=$this->tablenameM_str;//変換マスタから受注ヘッダー用の情報取得
+					$this->csvhenkanM_Select();
+					$this->jyuchuM_Insert();//明細項目を移送
+					$this->jyuchu_data_trim();//住所や電話番号などの空白や-を抜いています
+				}
+				// DeNA独自処理
+				// FIXME: 本来ここにあるべき処理ではない。
+				// ne_biddersCnvクラスは独自処理はこの箇所以外に利用しておらず、
+				// ここの処理をne_all_in_one_biddersCnv.phpに移動次第削除し、
+				// ne_biddersCnvクラスも削除するべき。
+				if((int)$this->param_array['moru_code'] === Models_Kbn_Mall::DENA){
+					$bds = new ne_biddersCnv();
+					$bds->set_param_array($this->param_array);
+					$bds->meisaiCancel();
+					$bds->koumokuSentakusi_cnv();
+					$this->param_array=$bds->get_param_array();
+					$before_syohin_code = $bds->before_koumokuSentakusi_cnv($before_syohin_code, $before_kanri_no);
+				}
+				// FIXME: 以下のif文がある理由
+				// 以下の処理は、DeNAの独自処理がない場合の処理であり、
+				// DeNAの独自処理がこの箇所になくなった場合は削除するべき。
+				if ($before_syohin_code === ''){
+					$before_syohin_code = $this->param_array['syohin_code'];
+				}
+
+				$this->defaultSet();//店舗別規定設定
+
+				$this->meisaiSyohin_Select();//商品情報添加
+				$setsyohin_flg='0';
+				$himoduke_ok = false;
+				// 商品マスタに登録されていない場合
+				if($this->syohinChk_flg==='1'){
+					$setSyohin = new ne_SetSyohin();
+					$setSyohin->setDbSources($this->db, $this->user_schema);
+
+					$convSetSyohinRes = $setSyohin->convSetSyohin($this->param_array['syohin_code']);
+					// セット商品の場合、セットを展開して明細に登録
+					if(count($convSetSyohinRes)!==0){
+						$this->setsyohin_array=$convSetSyohinRes;
+						$this->set_setsyohin_meisai();
+						$setsyohin_flg='1';
+						$this->meisaiGyo_int=$this->meisaiGyo_int-1;//$this->HeaderWrite_Check();でプラスしてるので1行戻す。
+					}
+					// セット商品ではない場合、商品コード紐付けを実施
+					else {
+						$himoduke_ok = ne_syohinCodeHimoduke::mallToNe(
+							$this->db
+							, $this->user_schema
+							, $this->param_array['tenpo_code']
+							, $before_syohin_code
+							, $this->param_array['syohin_name']
+						) ;
+					}
+				}
+				// 商品マスタに登録されている場合、商品コード紐付けを実施
+				else {
+					$himoduke_ok = ne_syohinCodeHimoduke::mallToNe(
+						$this->db
+						, $this->user_schema
+						, $this->param_array['tenpo_code']
+						, $before_syohin_code
+						, $this->param_array['syohin_name']
+					) ;
+				}
+				if ($himoduke_ok) {
+					$this->param_array['syohin_code'] = $before_syohin_code;
+				}
+				if($setsyohin_flg==='0'){
+					$this->set_jyuchu_meisai();
+				}
+			}
+
+			if($this->result_array['ret']['csv_cnt']!=0 && $this->result_array['ret']['code']==='0'){
+				if(strlen($this->wkJyuchuno_int)!==0){
+					$this->jyuchu_su_modosi();//メール取込分とのひき
+					//複数配送受注の次が通常受注で終わる場合の伝票更新処理の対応2009.04.29
+		            if($this->wkTenpoDenpyono_str !==$this->oyaTenpoDenpyono_str){
+		                $this->oyaTenpoDenpyono_str='';
+		                $this->hukusuhaisou_no=0;
+		            }
+					$this->jyuchuHerr_update();//受注が変わる直前に前の受注の明細エラーをヘッダーのシステムメッセージに書き込み
+
+					// 以降の処理でLock wait timeoutやDeadlock foundが発生しても復旧して実行されません。
+					// (受注CSVの最後の１伝票のコミットが上記jyuchuHerr_updateで終わっている為)
+					// 問題が多発する場合はトランザクション管理を見直してください。
+				}
+
+				//複数配送受注再処理
+				$this->FukusuHaisouUpdate();
+				$this->db->commit();
+				$this->result_array['ret']['code']='0';
+				array_unshift($this->result_array['ret']['mes']," \n受注明細行数".$this->result_array['ret']['csv_cnt']."行 \n取込受注件数".$this->result_array['ret']['jyuchu_cnt']."件\n");
+
+				// ヒット商品お知らせ
+				$alert = new ne_alertHitSyohin($this->db, $this->user_schema, $this->tantou) ;
+				$alert->alertHitSyohin() ;
+
+				// オーソリのキュー登録
+				$enque = ExternalApi_Mall::factoryEnqueue($this->db, $this->user_schema, $this->tenpoCode_int, $this->tantou) ;
+				if( !is_null($enque) && is_array($this->wkJlc_array)) {
+                    foreach($this->wkJlc_array as $wkJlc){
+						//複数配送の際、1件のみオーソリキューを作成する
+						$enque->authori($wkJlc, TRUE) ;
+
+						$enque->jyuchuTouroku($wkJlc, TRUE) ;
+					}
+				}
+
+				// 【2重取込用】原因が解明できたら削除して下さい
+				$cnt = count($this->dup_tenpo_denpyo_no_array) ;
+				for($ii = 0 ; $ii < $cnt ; $ii++ ) {
+					$this->duplicateCheck($this->dup_tenpo_code_array[$ii], $this->dup_tenpo_denpyo_no_array[$ii]) ;
+				}
+			}else if($this->result_array['ret']['code']==='0'){
+				$this->result_array['ret']['code']='1';
+				$this->result_array['ret']['mes'][0]="データがありません。中身を確認して下さい。";
+			}//end if
+		}catch(Exception $e){
+			$err=$e->errorInfo[1];
+			ob_start();
+			print_r($e);
+			$msg = ob_get_contents();
+			ob_end_clean();
+			if ($err==1205 || $err==1213) {	//1205：Lock wait timeout exceeded;    1213：Deadlock found when trying to get lock;
+				$err_msg=" \n受注明細行数".$this->result_array['ret']['csv_cnt']."行 \n取込受注件数".$this->result_array['ret']['jyuchu_cnt']."件\n".
+				"受注番号 ".$this->param_array['tenpo_denpyo_no'] ."を含むそれ以降の受注が取り込まれませんでした。".
+				"\n　お手数ですが、再度取込をお願いします。\nそのまま同じファイルをご指定頂ければ、差分を取り込みます。".
+				"\n　同じエラーが表示された場合はシステムへご連絡下さい。".$msg;
+				throw new exception($err_msg);
+			} else {
+				throw $e;
+			}
+		}
+	}
+
+
+
+//ここから下は、このclassで使われている
+//モジュール群です。
+
+	/**
+	 * Enter description here...
+	 * 受注キャンセルチェック　
+	 * 条件　店舗コード、店舗伝票番号 が同じ　 且つ　 受注状態区分が「メール取込」のもの 且つ　受注キャンセルが0以外
+	 * メッセージを出すだけ、内容は取り込む。
+	 */
+	function cancelJyuchu_chk(){
+		$tenpo_code=$this->db->quote($this->param_array['tenpo_code']);
+		$tenpo_denpyo_no=$this->db->quote($this->param_array['tenpo_denpyo_no']);
+		$sql="SELECT tenpo_denpyo_no FROM $this->user_schema.t_trn_jyuchu_header
+			WHERE
+				tenpo_code=$tenpo_code
+			AND
+				tenpo_denpyo_no=$tenpo_denpyo_no
+			AND
+				torikomi_syurui_kbn = '0'
+			AND
+				jyuchu_cancel_kbn > '0'
+			AND
+				sakujyo_flg='0'
+			";
+
+		try{$resultH_array=$this->db->fetchAll($sql);}
+		catch(exception $e){throw $e;}
+
+		if(count($resultH_array)!==0){
+			array_push( $this->result_array['ret']['mes'],"受注番号：".$this->param_array['tenpo_denpyo_no']."　既に受注キャンセルされています。\n受注キャンセルの状態のまま、データは取り込みましたので内容を御確認下さい。\n");
+		}//end if
+	}//end function
+
+	/**
+	 * 受注伝票を元にした重複取込チェック
+	 *
+	 * 以下のケースに該当する場合、注意文を表示して処理を行わない
+	 * 1.店舗コードと受注番号が同じ かつ 同時に受注取込している場合
+	 * 2.店舗コードと受注番号が同じ かつ 取込種類がメール取込でない（<>'0'）受注が存在する場合
+	 * 3.店舗コードと受注番号が同じ かつ その受注が出荷済フラグあり(汎用CSV限定) かつ 取込種類がメール取込である（='0'）受注が存在する場合
+	 */
+	function duplicateJyuchu_chk(ne_jyuchuUniqCtl $jyuchu_uniq_ctl){
+		/************* 1. 同時取込重複チェック **************/
+		// tenpo_denpyo_noはDBに格納する前処理としてソース上で、半角の文字は全角に変換して入れている。
+		// 重複判定時に、そのまま比較すると本来は同じ伝票のはずが、全角、半角の違いで重複判定に引っかからない。
+		// その為、検索する時はtenpo_denpyo_noを全角に変換した値とする。
+		// @see https://neprj.next-engine.com:10080/ld3sl/issues/50625
+		$mb_converted_tenpo_denpyo_no = mb_convert_kana($this->param_array['tenpo_denpyo_no'], 'KVa') ;
+		$jyuchu_uniq_ctl->set('tenpo_code', $this->param_array['tenpo_code']);
+		$jyuchu_uniq_ctl->set('tenpo_denpyo_no', $mb_converted_tenpo_denpyo_no) ;
+		if( $jyuchu_uniq_ctl->startSeigyo(ne_jyuchuUniqCtl::RETRY_CNT_FOR_CSV_API) === false ) {
+			array_push($this->result_array['ret']['mes'], "受注番号：" . $this->param_array['tenpo_denpyo_no'] . "　同時に同じ受注番号を取り込んでいます。\n取込はスキップしました。\n");
+			$this->duplicate_flg = '1';
+			$this->duplicate_tenpo_denpyo_no = $this->param_array['tenpo_denpyo_no'];
+
+			// insertに失敗した場合、LockしているのでrollBackが必要
+			try{$this->db->rollBack();}catch(Exception $e){}
+			// トランザクションを終了したので開始する
+			try{$this->db->beginTransaction();}catch(Exception $e){}
+			return ;
+		}
+
+		/************* 2. 同時取込ではない重複チェック **************/
+		$query = QueryBuilder::select()
+				 ->column(array('tenpo_denpyo_no'))
+				 ->from("{$this->user_schema}.t_trn_jyuchu_header")
+				 ->where('tenpo_code', '=', $this->param_array['tenpo_code'])
+				 ->where('tenpo_denpyo_no', '=', $mb_converted_tenpo_denpyo_no)
+				 ->where('torikomi_syurui_kbn', '<>', '0')
+				 ->where('sakujyo_flg', '=', '0');
+		$resultH_array = $this->db->fetchAll($query->build(), $query->buildParams());
+
+		if(count($resultH_array) !== 0){
+			array_push($this->result_array['ret']['mes'], "受注番号：" . $this->param_array['tenpo_denpyo_no'] . "　既に同じ受注番号が存在します。\n取込はスキップしました。\n");
+			$this->duplicate_flg = '1';
+			$this->duplicate_tenpo_denpyo_no = $this->param_array['tenpo_denpyo_no'];
+			return;
+		}
+
+		/************* 3. メール取込済み伝票を出荷確定済みにしようとしている **************/
+		$columns = array('jyuchu_denpyo_no');
+		$mail_jyuchu_header = $this->getMailJyuchuDenpyo($columns);
+
+		if(count($mail_jyuchu_header) !== 0 && $this->param_array['jyuchu_jyotai_kbn'] === '50'){
+			array_push($this->result_array['ret']['mes'], "受注番号：" . $this->param_array['tenpo_denpyo_no'] . "　既に同じ受注番号の受注メール取込済伝票が存在します。\n出荷済にするには 出荷＞出荷通知一括登録 をご利用ください。\n取込はスキップしました。\n");
+			$this->duplicate_flg = '1';
+			$this->duplicate_tenpo_denpyo_no = $this->param_array['tenpo_denpyo_no'];
+		}else{
+			$this->duplicate_flg = '0';
+		}
+	}
+
+	/**
+	 * 明細行チェックの結果をワークに貯める
+	 * 明細行のエラーは行レベルで表示させる。
+	 */
+	function MchkHeader_update(){
+		$wkmeisaiErr_str='';
+		$jyuchuErr_msg_array=explode(':',rtrim($this->jyuchuErrM_msg,":"));
+		for ($i=0;$i<count($jyuchuErr_msg_array);$i++){
+			if(strlen($jyuchuErr_msg_array[$i])!==0){
+				$wkmeisaiErr_str.=$jyuchuErr_msg_array[$i]."#".$this->param_array['jyuchu_meisai_gyo'].':';
+			}//end if
+		}//end for
+		if(strlen($wkmeisaiErr_str)===0){
+			$this->wk_jyuchuMErr_msg.='';
+		}else{
+			$this->wk_jyuchuMErr_msg.=':'.trim($wkmeisaiErr_str,':');
+		}
+	}//end function
+
+	/**
+	 * 受注ヘッダーの再計算処理　複数配送先や、配送料無料などの判断
+	 */
+	function jyuchuRecalc(){
+		$kk= new ne_koumokuKeisan();
+		$kk->set_db($this->db);
+		$kk->set_user_schema($this->user_schema);
+		$kk->set_tantou($this->tantou);
+		$kk->set_tenpoCode_int($this->tenpoCode_int);//店舗毎の条件を取得する為必要
+		$kk->set_kuni_code($this->param_array['kuni_code']);
+		$kk->set_tenpo_zei_kbn($this->param_array['tenpo_zei_kbn']);
+		$kk->set_kigyo_zei_kbn($this->kigyo_zei_kbn);
+		$kk->set_hasu_syori_kbn($this->hasu_syori_kbn);
+		$kk->set_zeiRitu_int($this->zeiRitu_int);
+		$kk->set_param_array($this->param_array);//クール代金、発送料金のデフォルトをセット
+
+		//支払方法の判定可否を設定
+		$kk->setIsSetShiharaiKbn($this->is_set_siharai_kbn);
+
+		$this->jyuchuDenpyono_int=$this->db->quote($this->wkJyuchuno_int);
+		$sql="SELECT * FROM $this->user_schema.t_trn_jyuchu_header
+			WHERE jyuchu_denpyo_no = $this->jyuchuDenpyono_int ";
+
+		try{$jyuchuH_array=$this->db->fetchRow($sql);}
+		catch(exception $e){throw $e;}
+		$sql="SELECT * FROM $this->user_schema.t_trn_jyuchu_meisai
+			 WHERE jyuchu_denpyo_no = $this->jyuchuDenpyono_int ";
+
+		try{$jyuchuM_array=$this->db->fetchAll($sql);}
+		catch(exception $e){throw $e;}
+		$jyuchuH_array['moru_code']=$this->param_array['moru_code'];
+
+		if(($this->kigyo_zei_kbn===$this->param_array['tenpo_zei_kbn'] && $this->param_array['kuni_code']==='1')){
+			$jyuchuH_array['saiKeisan_flg']='0';
+		}else{
+			$jyuchuH_array['saiKeisan_flg']='1';
+		}//end if
+
+		//ピッキングに必要な情報をヘッダーにupdate
+		$pic_array=picSaisyoSelect($this->db,$this->user_schema,$this->wkJyuchuno_int);
+		$jyuchuH_array['pic_saisyo_sire_code']=$pic_array['sire_code'];
+		$jyuchuH_array['pic_saisyo_syohin_code']=$pic_array['syohin_code'];
+
+		$kk->set_jyuchuH_array($jyuchuH_array);
+		$kk->set_jyuchuM_array($jyuchuM_array);
+		$kk->koumokuKeisan();
+	}//end function
+
+	/**
+	 * 受注データが正常にインポート出来たら、削除フラグを0に戻し
+	 * データを有効にする。
+	 * @param int $jyuchu_denpyo_no 削除フラグを0にする受注伝票番号
+	 */
+	function jyuchuData_Enable($jyuchu_denpyo_no){
+		$models_list = array(
+			new Models_JyuchuHeader($this->user_schema, $this->db),
+			new Models_JyuchuMeisai($this->user_schema, $this->db),
+		);
+
+		foreach ($models_list as $models) {
+			$models_array = $models->findAll(array(
+				array('jyuchu_denpyo_no', '=', $jyuchu_denpyo_no),
+				array('sakujyo_flg', '=', 1),
+			));
+			if(is_null($models_array)) continue;
+
+			foreach ($models_array as $model) {
+				$model->set('sakujyo_flg', 0);
+				$model->update($this->tantou);
+			}
+		}
+		$this->dup_debug_text .= "【jyuchuData_Enable実施】伝票番号{$jyuchu_denpyo_no}の受注伝票と受注明細のsakujyo_flgを \"0\" で更新。" ;
+	}//endfunction
+
+	/**
+	 * 機能説明：受注ヘッダーを作るかの判定チェック　
+	 * 条件は、店舗受注番号＋受注顧客情報＋発送顧客情報のどちらかが
+	 * 前のレコードと違った場合はFLGを1にする。（headerをinsertする。）
+	 * ★発送顧客が違い別受注になる場合合計金額等を再計算する必要あり
+	 *　親受注と子受注を識別する。
+	 * ★店舗受注番号が同じで、配送先が違う場合
+	 * @param	$insert_array		tmpTableのカラムとtableのカラム名の連想配列
+	 * @param	$table_name　		insertするテーブル名
+	 * @return	$strSql_insert		INSERT構文の完成文字列
+	 */
+	function HeaderWrite_Check(){
+		//店舗伝票番号退避
+		$tenpoDenpyono_str=$this->param_array['tenpo_denpyo_no'];
+
+		//ブレーク条件作成
+		$writeCheck_str=$tenpoDenpyono_str;
+		for($i=0;$i<count($this->headerChkcol_array);$i++){
+			$writeCheck_str.=$this->param_array[$this->headerChkcol_array[$i]];
+		}//end for
+
+		$writeCheck_str=str_replace('　','',str_replace(' ','',trim($writeCheck_str)));//空白除去
+
+		//受注ヘッダー書込判定
+		if($this->wkTenpoDenpyono_str === $tenpoDenpyono_str){
+			if($this->wk_writeCheck_str==$writeCheck_str){//複数明細
+				$this->HeaderWriteFlg_str="0";
+				$this->meisaiGyo_int=$this->meisaiGyo_int+1;
+				if($this->hukusuujyuchuFlg_str==='0'){//通常の複数明細 or 複数配送受注の一件目の複数明細
+					$this->hukusuhaisou_no=0;
+					$this->oyaTenpoDenpyono_str='';
+				}else{//複数配送受注中の複数明細
+					$this->oyaTenpoDenpyono_str=$this->wkTenpoDenpyono_str;
+				}
+			}else{										//複数配送先
+				$this->HeaderWriteFlg_str="1";
+				$this->oyaTenpoDenpyono_str=$this->wkTenpoDenpyono_str;
+				$this->wkTenpoDenpyono_str = $tenpoDenpyono_str;
+				$this->wk_writeCheck_str=$writeCheck_str;
+				$this->meisaiGyo_int=1;
+				$this->hukusuujyuchuFlg_str='1';
+			}//endif
+		}else{//別受注
+			$this->jyuchu_su_modosi();//メール取込引当分が余った場合の引き戻し
+			if($this->hukusuujyuchuFlg_str==='1'){//前の行が複数配送先受注の場合の対応
+				$this->oyaTenpoDenpyono_str=$this->wkTenpoDenpyono_str;
+			}else{
+				$this->oyaTenpoDenpyono_str='';
+				$this->hukusuhaisou_no=0;
+			}//end if
+			$this->HeaderWriteFlg_str="1";
+			$this->wkTenpoDenpyono_str = $tenpoDenpyono_str;
+			$this->wk_writeCheck_str=$writeCheck_str;
+			$this->meisaiGyo_int=1;
+			$this->hukusuujyuchuFlg_str='0';
+		}//end if
+	}//endfunction
+
+	/**
+	 * 明細行チェックの結果をヘッダーに書き込む
+	 */
+	function jyuchuHerr_update(){
+		//ヤマトﾒｰﾙ便容量チェック
+		$jdc2=new ne_JdataChk();//取込データのチェックモジュールのインスタンスを作ってます。
+		$jdc2->set_db($this->db);
+		$jdc2->set_user_schema($this->user_schema);
+		$jdc2->setIsMailTorikomi($this->is_mail_torikomi);
+		$tenpo_code=$this->db->quote($this->tenpoCode_int);
+		$sql2="SELECT system_message_kbn FROM $this->user_schema.t_mst_tenpo_system_message_chk
+		WHERE tenpo_code=$tenpo_code AND system_message_kbn='BS' AND chk_flg = '1'";
+		$yamatoMail_chk=$this->db->fetchOne($sql2);
+   		$sql="SELECT jyuchu_denpyo_no,system_message_kbn,tenpo_code,hasou_kbn,syohin_name,jyuchu_su FROM $this->user_schema.t_trn_jyuchu_header INNER JOIN $this->user_schema.t_trn_jyuchu_meisai USING(jyuchu_denpyo_no) WHERE jyuchu_denpyo_no = ? AND cancel_kbn='0'";
+   		$aryParam = array($this->wkJyuchuno_int);
+		$jyuchuM_array=$this->db->fetchAll($sql, $aryParam);
+		//受注確認内容設定「メール便梱包容量オーバーです」の適格な発送方法(11,14,15,22,23,26,27,28,31,32,33,35)
+		$MailBin_array=array(
+			Models_Kbn_Hasou::SAGAWA_MAIL_E_PRO,
+			Models_Kbn_Hasou::SAGAWA_MAIL_E,
+			Models_Kbn_Hasou::SAGAWA_MAIL_E2,
+			Models_Kbn_Hasou::YAMATO_DM_V6,
+			Models_Kbn_Hasou::YAMATO_MAIL_V6,
+			Models_Kbn_Hasou::YAMATO_DM_V5,
+			Models_Kbn_Hasou::YAMATO_MAIL_V5,
+			Models_Kbn_Hasou::YAMATO_NEKOPOSU,
+			Models_Kbn_Hasou::LETTER_PACK_500,
+			Models_Kbn_Hasou::LETTER_PACK_350,
+			Models_Kbn_Hasou::YU_MAIL,
+			Models_Kbn_Hasou::YU_PACKET);
+		if(in_array($jyuchuM_array[0]['hasou_kbn'],$MailBin_array)===TRUE && $yamatoMail_chk=='BS'){
+			$wk_system_message_kbn=$this->jyuchuErrH_msg.$this->wk_jyuchuMErr_msg;
+			$this->jyuchuErrH_msg.=$jdc2->chkMailbinYouryou_over($jyuchuM_array,$wk_system_message_kbn);//ここで引っ掛かったら要判断待ち
+		}//end if
+
+		//特定商品で数量チェック
+		$sql3="SELECT system_message_kbn FROM $this->user_schema.t_mst_tenpo_system_message_chk
+		WHERE tenpo_code=$tenpo_code AND system_message_kbn='CP' AND chk_flg = '1'";
+		$TagJyuchu_su_chk=$this->db->fetchOne($sql3);
+		if($TagJyuchu_su_chk=='CP'){
+		         $wk_system_message_kbn=$this->jyuchuErrH_msg.$this->wk_jyuchuMErr_msg;
+			$this->jyuchuErrH_msg.=$jdc2->chkTagJyuchu_su($this->wkJyuchuno_int,$TagJyuchu_su_chk,$wk_system_message_kbn);//ここで引っ掛かったら要判断待ち
+		}//end if
+
+		if(strlen($this->wk_jyuchuMErr_msg)===0){
+			$this->wk_jyuchuMErr_msg='';
+		}else{
+			// 受注から商品情報自動作成が有効な場合、確認待ちのAA(商品マスタに登録なし)を削除する
+			if( !is_null($this->regist_syohin_from_jyuchu) ) {
+				$msg_ary = explode(':', $this->wk_jyuchuMErr_msg) ;
+				$new_msg_ary = array() ;
+				foreach ($msg_ary as $msg) {
+					if( strncasecmp('AA', $msg, 2) === 0 ) {
+						continue ;
+					}
+					$new_msg_ary[] = $msg ;
+				}
+				$this->wk_jyuchuMErr_msg = implode(':', $new_msg_ary) ;
+			}
+			$this->wk_jyuchuMErr_msg=':'.trim($this->wk_jyuchuMErr_msg,":");
+		}//end if
+		$this->jyuchuErrH_msg=trim($this->jyuchuErrH_msg,":");
+
+		if( strlen($this->jyuchuErrH_msg) > 0 ) {
+			$system_message_kbn=$this->jyuchuErrH_msg.$this->wk_jyuchuMErr_msg;
+			$kakunin_check_kbn='1';
+		// 明細行はメッセージがある場合必ず先頭に:があり(あるなら2byte以上)、なくても:がある場合があるので1byte超過でチェック
+		}else if( strlen($this->wk_jyuchuMErr_msg) > 1 ) {
+			$err_msg=trim($this->wk_jyuchuMErr_msg,":");
+			$system_message_kbn=$err_msg;
+			$kakunin_check_kbn='1';
+		}else{
+			$system_message_kbn=null;
+			$kakunin_check_kbn='2';
+		}
+
+		//明細に特定の商品タグが存在するか
+		$query = "SELECT t_kbn_mst_system_message.system_message_kbn,t_kbn_mst_system_message.value_txt
+			FROM $this->user_schema.t_mst_tenpo_system_message_chk
+			INNER JOIN $this->user_schema.t_kbn_mst_system_message ON t_mst_tenpo_system_message_chk.system_message_kbn = t_kbn_mst_system_message.system_message_kbn
+			WHERE t_mst_tenpo_system_message_chk.tenpo_code=:tenpo_code
+			AND t_mst_tenpo_system_message_chk.system_message_kbn IN ('CF','CG','CH','CI','CJ')
+			AND t_mst_tenpo_system_message_chk.chk_flg = '1';";
+		$system_message_result = $this->db->fetchAll($query, array('tenpo_code' => $this->tenpoCode_int));
+
+		if (count($system_message_result) > 0) {
+			$query = "SELECT t_mst_syohin_kihon.tag
+				FROM $this->user_schema.t_trn_jyuchu_meisai
+				INNER JOIN $this->user_schema.t_mst_syohin_kihon ON t_trn_jyuchu_meisai.syohin_code = t_mst_syohin_kihon.syohin_code
+				WHERE t_trn_jyuchu_meisai.jyuchu_denpyo_no = :jyuchu_denpyo_no
+				AND t_trn_jyuchu_meisai.cancel_kbn='0'
+				AND t_mst_syohin_kihon.tag is not null;";
+			$jyuchu_meisai_result = $this->db->fetchAll($query, array('jyuchu_denpyo_no' => $this->wkJyuchuno_int));
+			foreach ($system_message_result as $system_message) {
+				//先頭に#がある場合は明細をまたいだチェック
+				if (preg_match('/^#.+/',$system_message['value_txt'])) {
+					//先頭の#は削除する
+					$value_txt = substr_replace($system_message['value_txt'],'',0,1);
+					if (preg_match('/,/',$value_txt)) {
+						//明細をまたいだAND検索
+						$value_txt_ary = explode(',',$value_txt);
+						$match_txt_ary = array();
+						foreach ($value_txt_ary as $message) {
+							foreach ($jyuchu_meisai_result as $meisai) {
+								if (preg_match("/$message/i", $meisai['tag'])) {
+									array_push($match_txt_ary, $message);
+								}
+							}
+						}
+						$match_txt_ary = array_unique($match_txt_ary);
+						if (count($value_txt_ary) === count($match_txt_ary)) {
+							$system_message_kbn .= ':' . $system_message['system_message_kbn'];
+							$kakunin_check_kbn = '1';
+						}
+					}
+				}
+			}
+		}
+
+		//複数配送の目印をつける
+		if($this->hukusuujyuchuFlg_str==='1' || strlen($this->oyaTenpoDenpyono_str)!==0){
+			$system_message_kbn='AH:'.$system_message_kbn;
+			$sql4="SELECT system_message_kbn FROM $this->user_schema.t_mst_tenpo_system_message_chk
+			WHERE tenpo_code=$tenpo_code AND system_message_kbn='AH' AND chk_flg = '1'";
+			$TagJyuchu_su_chk=$this->db->fetchOne($sql4);
+			if($TagJyuchu_su_chk=='AH'){
+		         $wk_system_message_kbn=$this->jyuchuErrH_msg.$this->wk_jyuchuMErr_msg;
+				$kakunin_check_kbn='1';
+			}//end if
+			$tenpo_denpyo_no=$this->db->quote($this->oyaTenpoDenpyono_str.'-h'.$this->hukusuhaisou_no);
+			$this->hukusuhaisou_no++;
+			$set_sql="tenpo_denpyo_no= $tenpo_denpyo_no,
+					  hukusu_haisou_oya_flg='1',";
+
+			$this->updateMeisaiTenpoDenpyoNo($this->wkJyuchuno_int, $tenpo_denpyo_no);
+			if($this->hukusuujyuchuFlg_str==='0'){$this->hukusuhaisou_no=0;}
+		}else{//通常受注
+			$set_sql="hukusu_haisou_oya_flg='0',
+					  hukusu_haisou_oyajyuchu_denpyo_no=null,";
+		}//end if
+
+		//////////////////////////////////////////////////////////////////////////////////////////
+		// 配達設定による受注確認チェック。配達設定による確認が必要な場合、作業用欄に配達設定のメッセージを追記する。
+		//////////////////////////////////////////////////////////////////////////////////////////
+		$sagyosya_sql = "SELECT sagyosya_ran FROM $this->user_schema.t_trn_jyuchu_header WHERE jyuchu_denpyo_no = ?" ;
+		$aryParam=array($this->wkJyuchuno_int);
+		$org_sagyosya_ran = $this->db->fetchOne($sagyosya_sql, $aryParam) ;
+		$jdc2->chkhaitatu_settei($temp_str, $sagyosya_ran, $this->wkJyuchuno_int) ;
+		if( strlen($temp_str) >= 1 ) {
+			if( strlen($system_message_kbn) >= 1 ) {
+				$system_message_kbn .= ':' ;
+			}
+			$system_message_kbn .= $temp_str ;
+			$kakunin_check_kbn = '1' ;
+		}
+		if( strlen($sagyosya_ran) >= 1 && strlen($org_sagyosya_ran) >= 1 ) {
+			$sagyosya_ran .= "\n" ;
+		}
+		$sagyosya_ran .= $org_sagyosya_ran ;
+
+		if( $this->is_mail_torikomi ) {
+			$set_sql .= "jyuchu_jyotai_kbn = '1' , torikomi_syurui_kbn = '0',  mail_jyotai_value = null," ;
+			//システムメッセージ、確認チェック区分、作業用欄初期化
+			//本来であれば新規受付時には確認内容の判定を行わないのが正しいが
+			//色んな箇所で確認内容の判定を行っている為、
+			//仕方なく最後の更新時に確認内容関係項目を初期化している
+			$system_message_kbn = null;
+			$kakunin_check_kbn = 1;
+			$sagyosya_ran = null;
+		}
+
+		$sql_updateH="UPDATE $this->user_schema.t_trn_jyuchu_header
+					  SET ".$set_sql.
+						  "system_message_kbn=?,
+						   kakunin_check_kbn=?,
+						   sagyosya_ran=?
+					  WHERE jyuchu_denpyo_no =?";
+		$aryParam=array($system_message_kbn,$kakunin_check_kbn,$sagyosya_ran,$this->wkJyuchuno_int);
+
+		try{$resultUpdateH=$this->db->query($sql_updateH,$aryParam);}
+		catch(exception $e){throw $e;}
+
+		$this->jyuchuRecalc();//再計算処理　複数配送先や、配送料無料などの判断
+
+		// カスタマイズ処理がある場合、カスタマイズ処理を実行
+		foreach($this->ctz_jyuchutorikomi_post_list as $ctz_jyuchutorikomi_post) {
+			$ctz_jyuchutorikomi_post->execute() ;
+		}
+
+		//ログ
+		$sousa_naiyou = '受注取込' ;
+		if( $this->is_mail_torikomi ) {
+			$sousa_naiyou = '受注仮取込' ;
+		}
+
+		$this->log->write($this->db,$this->user_schema,'0',$this->tantou,$this->logTablename_str,$this->wkJyuchuno_int,$sousa_naiyou,$this->import_log_message);
+		$this->result_array['ret']['jyuchu_cnt']++;
+		$this->jyuchuData_Enable($this->wkJyuchuno_int);//全てのテーブルにデータが正しく入れば、削除フラブを0に変更して有効なデータとする。
+ 		$this->db->commit();
+
+		// 受注から商品マスタ自動作成が有効なら、登録した受注に対して商品マスタ自動作成を実行
+		if( !is_null($this->regist_syohin_from_jyuchu) ) {
+			$this->regist_syohin_from_jyuchu->execute(array($this->wkJyuchuno_int)) ;
+		}
+
+		// まだ記憶していない伝票番号なら記憶する。
+		if( !in_array($this->wkJyuchuno_int, $this->wkJyuchuno_array, TRUE) ) {
+			$this->wkJyuchuno_array[] = $this->wkJyuchuno_int ;
+
+			//APIキュー作成に必要なne_jyuchuLog_createクラスのオブジェクトを作成
+			$enque = ExternalApi_Mall::factoryEnqueue($this->db, $this->user_schema, $this->tenpoCode_int, $this->tantou) ;
+			if( !is_null($enque) ) {
+
+				//取り込み時、オーソリが走る
+				$jlc=new ne_jyuchuLog_create();
+				$jlc->set_db($this->db);
+				$jlc->set_user_schema($this->user_schema);
+				$jlc->set_jyuchu_denpyo_no($this->wkJyuchuno_int);
+				$jlc->move_before_header_array();
+
+				$tmp = $jlc->get_before_header_array() ;
+				$jlc->set_after_header_array($tmp) ;
+
+				$this->wkJlc_array[] = $jlc;
+			}
+
+		}
+
+		// これは不具合ではなくて合えて次受注のトランザクション管理に使っている。
+		// (非常に難解なトランザクション管理なので注意して下さい。)
+		$this->db->beginTransaction();
+
+		// 展開前、後のセット商品の情報を初期化
+		$this->set_syohin_expands_info_array = array() ;
+	}//end function
+
+	/**
+	 * 明細の店舗伝票番号を更新する
+	 * @param int    $jyuchu_denpyo_no 更新対象となる明細の受注伝票番号
+	 * @param string $tenpo_denpyo_no  更新後の店舗伝票番号
+	 */
+	private function updateMeisaiTenpoDenpyoNo($jyuchu_denpyo_no, $tenpo_denpyo_no){
+		$jyuchu_meisai = new Models_JyuchuMeisai($this->user_schema, $this->db);
+		$meisai_array = $jyuchu_meisai->findAll(array(
+			array('jyuchu_denpyo_no', '=', $jyuchu_denpyo_no)
+		));
+
+		if(is_null($meisai_array)) return;
+
+		foreach ($meisai_array as $models) {
+			$models->set('tenpo_denpyo_no', $tenpo_denpyo_no);
+			$models->update($this->tantou);
+		}
+	}
+
+	/**
+	 * 2重取り込み検知＆メール送信(根本解決したら削除して下さい)
+	 */
+	private function duplicateCheck($tenpo_code, $tenpo_denpyo_no) {
+		$sql = "SELECT
+					*
+				FROM
+					{$this->user_schema}.t_trn_jyuchu_header
+				WHERE
+					sakusei_bi >= (NOW() - INTERVAL 1 day)
+					AND
+					tenpo_code = :tenpo_code
+					AND
+					tenpo_denpyo_no = :tenpo_denpyo_no
+					AND
+					jyuchu_cancel_kbn = '0'
+					AND
+					sakujyo_flg = '0'
+					AND
+					hukusu_haisou_oyajyuchu_denpyo_no IS NULL
+				" ;
+		$params = array() ;
+		$params[':tenpo_code'] = $tenpo_code ;
+		$params[':tenpo_denpyo_no'] = $tenpo_denpyo_no ;
+		$duplicate_header = $this->db->fetchAll($sql, $params) ;
+
+		// 2重取り込みが発生していないなら何もしない
+		if( count($duplicate_header) < 2 ) {
+			return ;
+		}
+
+		////////////////////////////////////////////////////////////////
+		// 2重取り込みが発生している場合、メールを送信する
+		////////////////////////////////////////////////////////////////
+		$to = Application::SYS_DEV_NE_MAIN_ADDRESS ;
+		$env = 'WEB起動' ;
+		if( isset($_SERVER['SERVER_NAME']) ) {
+			$server_name = $_SERVER['SERVER_NAME'] ;
+		}
+		else {
+			$server_name = shell_exec('uname -n') ;
+			$env = 'BATCH起動' ;
+		}
+		$title = "二重取り込み検知[{$server_name}] [{$this->user_schema}][$env][$this->dup_uid]" ;
+		$body = "過去一日以内に作成された「受注番号と店舗コードが同じ受注」が見つかりました。" . PHP_EOL ;
+
+		foreach($duplicate_header as $header) {
+			$body .= PHP_EOL . "####################### 重複している伝票[{$header['jyuchu_denpyo_no']}]のヘッダー情報 ##################" . PHP_EOL ;
+			$body .= print_r($header, true) ;
+			$sql = "SELECT * FROM {$this->user_schema}.t_trn_jyuchu_meisai WHERE jyuchu_denpyo_no = ?" ;
+			$duplicate_meisai = $this->db->fetchAll($sql, array($header['jyuchu_denpyo_no'])) ;
+			$body .= PHP_EOL . "----------------------- 重複している伝票[{$header['jyuchu_denpyo_no']}]の明細情報 ------------------" . PHP_EOL ;
+			$body .= print_r($duplicate_meisai, true) ;
+		}
+		$body .= PHP_EOL . "========== 登録・更新・削除履歴 ==========" . PHP_EOL ;
+		$body .= $this->dup_debug_text ;
+		$body .= PHP_EOL . "========== メンバ情報 ==========" . PHP_EOL ;
+		$body .= print_r($this, true) ;
+		mb_send_mail($to, $title, $body, "From: admin@" . $server_name) ;
+	}
+
+
+	/**
+	 * 複数配送受注情報更新
+	 * 支払が代引きの場合は確認メッセージBQを追加とする。
+	 */
+	function FukusuHaisouUpdate(){
+		$sqlOyaSelect="SELECT tenpo_code,jyuchu_denpyo_no,tenpo_denpyo_no,siharai_kbn,system_message_kbn,jyuchu_mail_adr
+					   FROM $this->user_schema.t_trn_jyuchu_header
+					   WHERE
+					   	 torikomi_bi > date_format(now(),'%Y-%m-%d 00:00:00')
+					   AND jyuchu_jyotai_kbn > '1'
+					   AND (tenpo_denpyo_no like '%-hh-0' OR tenpo_denpyo_no like '%-h0')
+					   ";
+		try{$resultOya=$this->db->fetchAll($sqlOyaSelect);}
+		catch(exception $e){throw $e;}
+
+		foreach($resultOya as $oyaJyuchu){
+			$oya_jyuchu_denpyo_no_qt=$this->db->quote($oyaJyuchu['jyuchu_denpyo_no']);
+			$oya_tenpo_denpyo_no=str_replace('-hh-0','',$oyaJyuchu['tenpo_denpyo_no']);
+			$oya_tenpo_denpyo_no=str_replace('-h0','',$oya_tenpo_denpyo_no);
+			$oya_tenpo_denpyo_no_qt=$this->db->quote($oya_tenpo_denpyo_no);
+			$oya_jyuchu_mail_adr_qt=$this->db->quote($oyaJyuchu['jyuchu_mail_adr']);
+
+			$tenpo_code_qt=$this->db->quote($oyaJyuchu['tenpo_code']);
+
+			$sql="SELECT system_message_kbn FROM $this->user_schema.t_mst_tenpo_system_message_chk
+			WHERE tenpo_code=$tenpo_code_qt AND system_message_kbn='BQ' AND chk_flg = '1' ";
+			$this->system_message_array=$this->db->fetchAll($sql);
+
+			if(count($this->system_message_array)!==0){
+				if($oyaJyuchu['siharai_kbn']=='1' && strpos($oyaJyuchu['system_message_kbn'],'BQ')===FALSE){
+					$system_message_kbn='BQ:'.$oyaJyuchu['system_message_kbn'];
+					$system_message_kbn_str=',system_message_kbn=?';
+					$aryParam=array($system_message_kbn);
+				}else{
+					$system_message_kbn='';
+				}//end if
+			}//end if
+
+			$sqlOyaupdateH="UPDATE $this->user_schema.t_trn_jyuchu_header
+						   SET tenpo_denpyo_no = $oya_tenpo_denpyo_no_qt,
+							   hukusu_haisou_oya_flg='1',
+	   						   hukusu_haisou_oyajyuchu_denpyo_no=null
+							   $system_message_kbn_str
+						   WHERE jyuchu_denpyo_no = $oya_jyuchu_denpyo_no_qt";
+			try{$OyaUpdateH=$this->db->query($sqlOyaupdateH,$aryParam);}	//$aryParamがnullでも、パラメータが無い場合は問題ない。
+			catch(exception $e){throw $e;}
+
+			//親受注明細更新
+			$this->updateMeisaiTenpoDenpyoNo($oyaJyuchu['jyuchu_denpyo_no'], $oya_tenpo_denpyo_no);
+
+			//子受注ヘッダー更新
+			$sqlKoupdate="UPDATE $this->user_schema.t_trn_jyuchu_header
+						  SET hukusu_haisou_oya_flg='0',
+							  hukusu_haisou_oyajyuchu_denpyo_no=$oya_jyuchu_denpyo_no_qt,
+							  jyuchu_mail_adr=$oya_jyuchu_mail_adr_qt,
+							  syohin_kin=0,
+							  zei_kin=0,
+							  tesuryo_kin=0,
+							  hasou_kin=0,
+							  sonota_kin=0,
+							  point=0,
+							  goukei_kin=0,
+							  nyukin_kin=0,
+							  credit_syonin_kin=0
+						  WHERE (tenpo_denpyo_no like '$oya_tenpo_denpyo_no-hh-%' OR tenpo_denpyo_no like '$oya_tenpo_denpyo_no-h%')
+						  AND tenpo_code=$tenpo_code_qt";
+
+			try{$KoUpdateM=$this->db->query($sqlKoupdate);}
+			catch(exception $e){throw $e;}
+		}//end foreach
+	}//end function
+
+	/**
+	 * 店舗マスタから国コードとモールコードを取得
+	 *　海外サイトの判定や同梱条件などに使用
+	 *  画面用と内部処理用で別々なので共用したい
+	 */
+	function _getTenpoMst(){
+		//店舗マスタを取得
+		$tmh= new ne_Tenpo();
+		$tmh->set_db($this->db);
+		$tmh->set_user_schema($this->user_schema);
+		$tmh->set_tenpoCode_int($this->tenpoCode_int);
+		$tmh->getTenpoMst();
+		$result_array = $tmh->get_result_array();
+
+		$this->param_array['moru_code']=$result_array['moru_code'];
+		$this->param_array['tenpo_name']=$result_array['tenpo_name'];
+		$this->param_array['kuni_code']=$result_array['kuni_code'];
+		$this->param_array['tenpo_zei_kbn']=$result_array['tenpo_zei_kbn'];
+		$this->param_array['default_hasou_kin']=$result_array['default_hasou_kin'];
+		$this->param_array['default_tesuryo_kin']=$result_array['default_tesuryo_kin'];
+		$this->param_array['default_sonota_kin']=$result_array['default_sonota_kin'];
+		$this->param_array['default_cool_kin']=$result_array['default_cool_kin'];
+	}//end function
+
+
+
+	/**
+	 * 機能説明：受注データ取り込み用 fromtmptable　theヘッダー
+	 *
+	 *
+	 * 補足：外国の住所表記は、jyusyo1+yubin_bangou+jyusyo2で
+	 * 　　　通じる表記で格納する事
+	 *
+	 * @param	$insert_array		tmpTableのカラムとtableのカラム名の連想配列
+	 * @param	$table_name　		insertするテーブル名
+	 * @return	$strSql_insert		INSERT構文の完成文字列
+	 */
+	function jyuchuH_Insert(){
+		// getSagyosyaRan 内の個別対応で login_id が必要。
+		if (!$this->login_id) {
+			$model_kigyo = new Models_Kigyo();
+			$this->set_login_id($model_kigyo->getKigyoOneForUserSchema($this->user_schema)->get('login_id'));
+		}
+		for($j=0;$j<$this->csvHmstColcnt_int;$j++){
+
+			if(ereg(':',$this->csvhmstRow_array[$j]['csv_koumoku'])){
+				$sep_array = explode(":",$this->csvhmstRow_array[$j]['csv_koumoku']);//変換マスタのcsv項目指定が複数のデータが存在する為
+			}elseif(strlen($this->csvhmstRow_array[$j]['csv_koumoku'])!==0){
+				$csv_koumoku="column".$this->csvhmstRow_array[$j]['csv_koumoku'];//テンプテーブルの何列目かを指定
+				$tmpRow_value=trim($this->tmpRow_arrayOne["$csv_koumoku"]);//項目に入れる値 （テンプテーブルの値)
+			}else{
+				$tmpRow_value='';
+			}
+
+			$table_koumoku_name=$this->csvhmstRow_array[$j]['table_koumoku_name'];//テーブル項目
+			$henkan_koumoku_syori_kbn=$this->csvhmstRow_array[$j]['henkan_koumoku_syori_kbn'];//変換する種別
+
+			switch ($henkan_koumoku_syori_kbn){
+			case(0)://初期値を入れる。
+				break;
+			case(1)://項目移送
+				if($table_koumoku_name=='sagyosya_ran'){
+					$this->param_array[$table_koumoku_name] = self::getSagyosyaRan($this->login_id, $tmpRow_value, $this->param_array[$table_koumoku_name]) ;
+				}else{
+					$this->param_array["$table_koumoku_name"] = $tmpRow_value;
+				}//end if
+				break;
+			case(2)://ゼロを入れる
+				$this->param_array["$table_koumoku_name"] = 0;
+				break;
+			case(3)://複合項目接合　項目移送と一緒にしたほうが良い？
+				for($k=0, $kMax = count($sep_array); $k< $kMax; $k++){
+					$csv_koumoku = "column".$sep_array[$k];
+					$this->param_array["$table_koumoku_name"] .= $this->tmpRow_arrayOne["$csv_koumoku"]." ";
+				}
+				$this->param_array["$table_koumoku_name"]=rtrim($this->param_array["$table_koumoku_name"]);
+				break;
+			case(4)://固定でsysytemの担当コードを入れる
+				$this->param_array["$table_koumoku_name"] = $this->tantou;
+				break;
+			case(5)://現時刻を入れる
+				$nw=$this->db->fetchAll("select now() as 'nw';");
+				$this->param_array["$table_koumoku_name"] =$nw[0]['nw'];
+				break;
+			case(6)://コードに変換
+				if(mb_strlen($tmpRow_value)!==0){
+					$tmpRow_value=htmlspecialchars_decode($tmpRow_value);
+					$sql="SELECT henkan_code FROM $this->user_schema.t_mst_henkan
+							WHERE key_text=? AND koumoku_name=? AND sakujyo_flg='0'";
+					$aryParam = array($tmpRow_value,$table_koumoku_name);
+					try{$this->kbnCnvcode_str=$this->db->fetchAll($sql,$aryParam);}
+					catch(exception $e){
+					throw $e;}
+					$err_hasou_msg='';
+					if(count($this->kbnCnvcode_str)!==0){
+						$this->param_array["$table_koumoku_name"] = $this->kbnCnvcode_str[0]['henkan_code'];
+					}else{
+						switch($table_koumoku_name){
+						case('siharai_kbn'):
+							$err_kbn_name='支払方法';
+							break;
+						case('hasou_kbn'):
+							$err_kbn_name='発送方法';
+							$err_hasou_msg='今回は規定の発送方法で取り込みました。';
+							break;
+						case('credit_kbn'):
+							$err_kbn_name='クレジット種類';
+							break;
+						default:
+							$err_kbn_name=$table_koumoku_name;
+							break;
+						}//end switch
+						$this->param_array['wk_sagyosya_ran'].= '取込はされましたが、受注ＣＳＶファイル内の名称「'.$tmpRow_value."」が受注伝票項目「".$err_kbn_name."」に取り込めませんでした。\n";
+					}//end if
+				}//end if
+				break;
+			case(8)://店舗コード格納
+				$this->param_array["$table_koumoku_name"] = $this->tenpoCode_int;
+				break;
+			case(10)://時間帯指定区分変換
+				break;
+			case(11)://設定した規定値を入れる。
+				$this->param_array["$table_koumoku_name"] = 10;
+				break;
+			case(12)://先頭から8桁を入れる bidders郵便番号　モール独自処理でカバー？
+				break;
+			case(13)://先頭から7桁以降を入れる bidders住所　　モール独自処理でカバー？
+				break;
+			case(14)://びっだー図　取引op対応
+				break;
+			case(97)://指定の項目の中身を全部足す
+				$calc_array = array();
+				for($k=0;$k<count($sep_array);$k++){
+					$csv_koumoku = "column".$sep_array[$k];
+					$calc_array[$k]= $this->tmpRow_arrayOne["$csv_koumoku"];
+				}
+				$this->param_array["$table_koumoku_name"]=array_sum($calc_array);
+				break;
+			case(100):// ヘッダーサブに入れる
+				$this->param_array["$table_koumoku_name"] = $tmpRow_value;
+				break;
+			default:
+				break;
+			}//endswitch
+		}//endfor
+
+        //支払発送変換設定に不備があった場合のエラーメッセージを作業用欄に格納する
+        if($this->param_array['wk_sagyosya_ran'] != ''){
+            $sagyosya_ran="***<<区分変換警告>>*****\n".
+                $this->param_array['wk_sagyosya_ran'].
+                $err_hasou_msg.
+                "お手数ですが、メニュー「設定」->「受注」->「支払発送変換設定」で\n ".
+                "取り込めなかった名称と変換する値を関連づけて下さい。次回より自動で取り込みます。\n".
+                "***<<区分変換警告>>*****";
+            $this->param_array['sagyosya_ran'].=$sagyosya_ran;
+        }
+
+	}//endfunction
+
+	public static function getSagyosyaRan($login_id, $add_sagyosya_ran, $org_sagyosya_ran = '') {
+		// 追加する作業者欄が空なら元の作業者欄のまま
+		if( strlen(trim($add_sagyosya_ran)) <= 0 ) {
+			return($org_sagyosya_ran) ;
+		}
+
+		// 株式会社MIFコスメ様 個別対応(基幹システムで/を使っているため出して欲しいとの要望)
+		if($login_id === '9865687') {
+			return("{$org_sagyosya_ran}/{$add_sagyosya_ran}") ;
+		}
+
+		// 元（メール取り込み時）の作業者欄が空なら、CSVの内容に設定
+		if( strlen(trim($org_sagyosya_ran)) <= 0 ) {
+			return($add_sagyosya_ran) ;
+		}
+
+		// 元（メール取り込み時）の作業者欄があるなら、/区切り
+		return("{$org_sagyosya_ran}/{$add_sagyosya_ran}") ;
+	}
+
+	/**
+	 * 機能説明：受注明細部分データ加工
+	 * テーブル定義に従い、ＣＳＶデータを格納
+	 */
+	function jyuchuM_Insert(){
+		for($j=0;$j<$this->csvHmstColcnt_int;$j++){
+
+			if(ereg(':',$this->csvhmstRow_array[$j]['csv_koumoku'])){
+				$sep_array = explode(":",$this->csvhmstRow_array[$j]['csv_koumoku']);//変換マスタのcsv項目指定が複数のデータが存在する為
+			}elseif(strlen($this->csvhmstRow_array[$j]['csv_koumoku'])!==0){
+				$csv_koumoku="column".$this->csvhmstRow_array[$j]['csv_koumoku'];//テンプテーブルの何列目かを指定
+				$tmpRow_value=$this->tmpRow_arrayOne[$csv_koumoku];//項目に入れる値 （テンプテーブルの値)
+			}
+
+			$table_koumoku_name=$this->csvhmstRow_array[$j]['table_koumoku_name'];//テーブル項目
+			$henkan_koumoku_syori_kbn=$this->csvhmstRow_array[$j]['henkan_koumoku_syori_kbn'];//変換する種別
+
+			switch ($henkan_koumoku_syori_kbn){
+			case(0)://nullを入れる
+				$this->param_array["$table_koumoku_name"] = null;
+				break;
+			case(1)://項目移送
+				$this->param_array["$table_koumoku_name"] = $tmpRow_value;
+				break;
+			case(2)://ゼロを入れる
+				$this->param_array["$table_koumoku_name"] = 0;
+				break;
+			case(3)://複合項目接合　項目移送と一緒にしたほうが良い？
+				for($k=0;$k<count($sep_array);$k++){
+					$csv_koumoku = "column".$sep_array[$k];
+					$this->param_array["$table_koumoku_name"] .= $this->tmpRow_arrayOne["$csv_koumoku"]." ";
+				}
+				$this->param_array["$table_koumoku_name"]=rtrim($this->param_array["$table_koumoku_name"]);
+				break;
+			case(4)://固定でsysytemの担当コードを入れる
+				$this->param_array["$table_koumoku_name"] = $this->tantou;
+				break;
+			case(5)://現時刻を入れる
+				$this->param_array["$table_koumoku_name"] = now();
+				break;
+			case(6)://コードに変換
+				$sql="SELECT henkan_code FROM $this->user_schema.t_mst_henkan
+						WHERE key_text=? AND koumoku_name=? AND sakujyo_flg='0'";
+				$aryParam = array($tmpRow_value,$table_koumoku_name);
+
+				try{$this->kbnCnvcode_str=$this->db->fetchOne($sql,$aryParam);}
+				catch(exception $e){throw $e;}
+				if($this->kbnCnvcode_str!==FALSE){
+					$this->param_array["$table_koumoku_name"] = $this->kbnCnvcode_str;
+				}//end if
+				break;
+			case(7)://手動オートインクリメント項目 受注明細行に使うかペンディング
+				$this->param_array["$table_koumoku_name"] = $this->meisaiGyo_int;
+				break;
+			case(8)://店舗コード格納
+				$this->param_array["$table_koumoku_name"] = $this->tenpoCode_int;
+				break;
+			case(9)://退避領域から移送 現状ne受注番号のみ対応
+				$this->param_array["$table_koumoku_name"] = $this->wkJyuchuno_int;
+				break;
+			case(10)://支払区分判断
+				break;
+			case(11)://10を入れる（びっだー図対応）v
+				$this->param_array["$table_koumoku_name"] = 10;
+				break;
+			case(12)://先頭から8桁を入れる bidders郵便番号　モール独自処理でカバー？
+				$this->param_array["$table_koumoku_name"] = str_replace("-","",substr($tmpRow_value,0,8));
+				break;
+			case(13)://先頭から7桁以降を入れる bidders住所　　モール独自処理でカバー？
+				$this->param_array["$table_koumoku_name"] = substr($tmpRow_value,9,(strlen($tmpRow_value)-1));
+				break;
+			case(98):
+				for($k=0;$k<count($sep_array);$k++){
+					$csv_koumoku = "column".$sep_array[$k];
+					$calc_array[$k]= $this->tmpRow_arrayOne["$csv_koumoku"];
+				}
+				$this->param_array["$table_koumoku_name"] = (int)$calc_array[0]/(int)$calc_array[1];
+				break;
+			case(99):
+				for($k=0;$k<count($sep_array);$k++){
+					$csv_koumoku = "column".$sep_array[$k];
+					$calc_array[$k]= $this->tmpRow_arrayOne["$csv_koumoku"];
+				}
+				$this->param_array["$table_koumoku_name"] = (int)$calc_array[0]*(int)$calc_array[1];
+				break;
+			default:
+				break;
+			}//endswitch
+		}
+	}
+
+	/**
+	 * 機能説明：
+	 * テンプテーブルの中身を全て出力
+	 //tmpTableからデータを全て連想配列に出す。
+	 * @param	$table_name		変換先テーブル名
+	 * @param	$ptn_no　		対応パターン番号
+	 * @return	$strSql_select	SELECT構文の完成文字列
+	 */
+	function tmpTable_Select(){
+		$sql = "select * from $this->user_schema.$this->tmpTablename_str";
+		try{$this->tmpRow_array=$this->db->fetchAll($sql);}
+		catch(exception $e){throw $e;}
+	}
+
+	/**
+	 * 機能説明：
+	 * 変換対応テーブルから情報を引き出す。
+	 *
+	 * @param	$table_name		変換先テーブル名
+	 * @param	$ptn_no　		対応パターン番号
+	 * @return	$strSql_select	SELECT構文の完成文字列
+	 */
+	function csvhenkanM_Select(){
+		$sql = "SELECT * FROM $this->user_schema.t_mst_csv_torikomi_taiou
+				WHERE ptn_code=? AND sakujyo_flg=0";
+		if($this->table_name!=""){
+			$sql.=" AND table_name='$this->table_name'";
+		}
+		$aryParam = array($this->ptnCode_int);
+		try{$this->csvhmstRow_array=$this->db->fetchAll($sql, $aryParam);}
+		catch(exception $e){throw $e;}
+
+		$this->csvHmstColcnt_int=count($this->csvhmstRow_array);
+	}
+
+	/**
+	 * 機能説明：
+	 * CSVファイルをそのままtmpテーブルにLOADする為の
+	 * tmpテーブル作成処理、項目名は連番で作成する。
+	 *
+	 * @param	$tenpo			店舗コード
+	 * @param	$col_no			列数の最大値
+	 * @return	$strSql_rakuten	CREATE構文の完成文字列
+	 */
+	function tmpTable_Create(){
+		$sql = " CREATE TEMPORARY TABLE $this->user_schema.$this->tmpTablename_str ( ";
+		$csvColcnt=($this->csvColcnt_int)-1;
+		for($i=0;$i<$csvColcnt;$i++){
+			$sql.=" Column$i text, ";
+		}//end for
+    	$sql.=" Column$csvColcnt VARCHAR(255))
+				Default Charset=UTF8; ";
+
+		try{$resultTmp = $this->db->query($sql);}
+		catch(exception $e){throw $e;}
+	}
+
+	/**
+	 * 機能説明：
+	 * mysqlのLOADの記述を店舗ごとのtmpテーブルに
+	 * 対応させる
+	 *
+	 * @param	$filePath		LOADするinfileのパス
+	 * @param	$tenpo　		店舗コード
+	 * @return	$tmploadSql_str	LAOD構文の完成文字列
+	 */
+	function tmpTable_Loader(){
+		$sql = " LOAD DATA INFILE '$this->loadFilepath_str'
+				INTO TABLE $this->user_schema.$this->tmpTablename_str
+				FIELDS TERMINATED BY ','
+				ENCLOSED BY '\"'
+				ESCAPED BY ''
+				LINES TERMINATED BY '\n'
+				IGNORE 1 LINES;";
+		try{$resultLoad = $this->db->query($sql);}
+		catch(exception $e){throw $e;}
+	}
+
+	/**
+	 * mailデータが取り込まれている場合は
+	 * そのデータを生かしてcsvデータをinsert
+	 * 複数配送受注の場合は、明細を退避して受注は削除
+	 *
+	 * メールアドレスを退避しておく
+	 * 楽天対応およびCSVのメールアドレスが有効でないときの為
+	 *
+	 * 注意!!　メール取込状態で
+	 */
+	function mailData_Chk(){
+		$this->wkjyuchu_cancel_kbn='0';//明細キャンセル判定に必要
+
+		// 同じ店舗コード、伝票番号のメール取込済伝票の調査
+		$columns = array('jyuchu_denpyo_no'
+						 ,'torikomi_syurui_kbn'
+						 ,'jyuchu_jyotai_kbn'
+						 ,'jyuchu_mail_adr'
+						 ,'jyuchu_cancel_kbn'
+						 ,'sagyosya_ran'
+						 ,'mail_jyotai_value'
+						 ,'nyukin_bi'
+						 ,'nyukin_kin'
+						 ,'nyukin_kbn'
+						 ,'credit_syonin_bi'
+						 ,'credit_syonin_kin'
+						 ,'credit_syonin_kbn'
+						 ,'credit_syonin_no'
+						 ,'jyuchu_tag'
+						 ,'sakusei_bi');
+		$mail_jyuchu_header = $this->getMailJyuchuDenpyo($columns);
+
+		if(count($mail_jyuchu_header)===0){//メールデータが無い場合
+			$this->param_array['upd_flg']='0';//insert
+			$this->param_array['torikomi_syurui_kbn']='1';//csvの更新とする為区分を変更
+		}elseif(count($mail_jyuchu_header)===1){//メール受注が通常の場合
+			if($mail_jyuchu_header[0]['jyuchu_jyotai_kbn']<'2'){
+				$this->param_array['upd_flg']='1';//update
+				$this->param_array['wkmail_adr']=$mail_jyuchu_header[0]['jyuchu_mail_adr'];
+				$this->param_array['nyukin_kbn']=$mail_jyuchu_header[0]['nyukin_kbn'];
+				$this->param_array['nyukin_bi']=$mail_jyuchu_header[0]['nyukin_bi'];
+				$this->param_array['nyukin_kin']=$mail_jyuchu_header[0]['nyukin_kin'];
+				$this->param_array['credit_syonin_kbn']=$mail_jyuchu_header[0]['credit_syonin_kbn'];
+				$this->param_array['credit_syonin_bi']=$mail_jyuchu_header[0]['credit_syonin_bi'];
+				$this->param_array['credit_syonin_kin']=$mail_jyuchu_header[0]['credit_syonin_kin'];
+				$this->param_array['sakusei_bi']=$mail_jyuchu_header[0]['sakusei_bi'];
+				//受注ファイルに承認番号の値を持っている場合は、その値を登録する。
+				if($this->param_array['credit_syonin_no'] == ''){ $this->param_array['credit_syonin_no']=$mail_jyuchu_header[0]['credit_syonin_no']; }
+				$this->param_array['torikomi_syurui_kbn']=$mail_jyuchu_header[0]['torikomi_syurui_kbn'];
+				$this->param_array['mail_jyotai_value']=$mail_jyuchu_header[0]['mail_jyotai_value'];
+				$this->param_array['jyuchu_denpyo_no']=$mail_jyuchu_header[0]['jyuchu_denpyo_no'];
+
+				$jyuchu_denpyo_no=$this->db->quote($mail_jyuchu_header[0]['jyuchu_denpyo_no']);
+				$sql_forupdate="SELECT tjh.jyuchu_denpyo_no FROM $this->user_schema.t_trn_jyuchu_header tjh inner join $this->user_schema.t_trn_jyuchu_meisai tjm using(jyuchu_denpyo_no) WHERE tjh.jyuchu_denpyo_no =$jyuchu_denpyo_no FOR UPDATE";
+				try{$forupdate_result = $this->db->fetchAll($sql_forupdate);}
+				catch(exception $e){throw $e;}
+
+				if($mail_jyuchu_header[0]['jyuchu_cancel_kbn']!=='0'){
+					$this->param_array['jyuchu_cancel_kbn']=$mail_jyuchu_header[0]['jyuchu_cancel_kbn'];
+				}//end if
+				$this->wkjyuchu_cancel_kbn=strval($this->param_array['jyuchu_cancel_kbn']);//明細キャンセル判定に必要
+
+				if(mb_strlen(trim($mail_jyuchu_header[0]['sagyosya_ran']))!==0){
+					if ($this->param_array['sagyosya_ran'] == '') {
+						$this->param_array['sagyosya_ran'].=$mail_jyuchu_header[0]['sagyosya_ran'];
+					} else {
+						$this->param_array['sagyosya_ran'].="/".$mail_jyuchu_header[0]['sagyosya_ran'];
+					}
+				}//end if
+
+				if(mb_strlen(trim($mail_jyuchu_header[0]['jyuchu_tag']))!==0){
+					$this->param_array['jyuchu_tag'].=$mail_jyuchu_header[0]['jyuchu_tag'];
+				}//end if
+
+				$sql_Hupdate="UPDATE $this->user_schema.t_trn_jyuchu_header
+						SET sakujyo_flg = '1'
+						WHERE jyuchu_denpyo_no=$jyuchu_denpyo_no AND sakujyo_flg='0'";
+				try{$headerUpdate = $this->db->query($sql_Hupdate);}
+				catch(exception $e){throw $e;}
+
+				//明細の引当数を退避
+				$sql_selectM="SELECT syohin_code,sum(hikiate_su) as hikiate_sum,sum(yoyaku_hikiate_su) as yoyaku_hikiate_sum,max(hikiate_bi) as hikiate_bi,'0' as chk,'0' as y_chk FROM $this->user_schema.t_trn_jyuchu_meisai
+							WHERE jyuchu_denpyo_no=$jyuchu_denpyo_no AND (hikiate_su>0 or yoyaku_hikiate_su>0)AND sakujyo_flg='0' GROUP BY syohin_code
+							FOR UPDATE ";
+				try{$this->wkmailMeisai = $this->db->fetchAll($sql_selectM);}
+				catch(exception $e){throw $e;}
+				//明細を一旦削除
+				$sql_delete="DELETE FROM $this->user_schema.t_trn_jyuchu_meisai
+						 	WHERE jyuchu_denpyo_no= $jyuchu_denpyo_no";
+
+				$this->dup_debug_text .= "【mailData_Chk 単一受注削除実施】SQL文[{$sql_delete}]" ;
+				try{$resultDelete = $this->db->query($sql_delete);}
+				catch (Exception $e) {throw $e;}
+				$this->param_array['torikomi_syurui_kbn']='1';//csvの更新とする為区分を変更
+			}else{//手入力の場合,同一ＣＳＶの中に同じ店舗伝票番号が存在した場合
+				$this->param_array['torikomi_syurui_kbn']=$mail_jyuchu_header[0]['torikomi_syurui_kbn'];
+				$this->result_array['ret']['code']='1';
+				$this->result_array['ret']['mes'][0]="異常終了\nこのファイルの中に、既に同じ店舗伝票番号で手入力されているか。\nＣＳＶファイル内に店舗伝票番号が重複して存在します。\n中身を確認して再度取込をお願いします。";
+			}//end if
+		}else{//メール受注が複数配送の場合
+			if($mail_jyuchu_header[0]['jyuchu_jyotai_kbn']<'2'){
+				$this->param_array['upd_flg']='0';//insert
+				$this->param_array['wkmail_adr']=$mail_jyuchu_header[0]['jyuchu_mail_adr'];
+				$this->param_array['nyukin_kbn']=$mail_jyuchu_header[0]['nyukin_kbn'];
+				$this->param_array['nyukin_bi']=$mail_jyuchu_header[0]['nyukin_bi'];
+				$this->param_array['nyukin_kin']=$mail_jyuchu_header[0]['nyukin_kin'];
+				$this->param_array['credit_syonin_kbn']=$mail_jyuchu_header[0]['credit_syonin_kbn'];
+				$this->param_array['credit_syonin_bi']=$mail_jyuchu_header[0]['credit_syonin_bi'];
+				$this->param_array['credit_syonin_kin']=$mail_jyuchu_header[0]['credit_syonin_kin'];
+				$this->param_array['sakusei_bi']=$mail_jyuchu_header[0]['sakusei_bi'];
+				//受注ファイルに承認番号の値を持っている場合は、その値を登録する。
+				if($this->param_array['credit_syonin_no'] == ''){ $this->param_array['credit_syonin_no']=$mail_jyuchu_header[0]['credit_syonin_no']; }
+				$this->param_array['torikomi_syurui_kbn']=$mail_jyuchu_header[0]['torikomi_syurui_kbn'];
+				$this->param_array['mail_jyotai_value']=$mail_jyuchu_header[0]['mail_jyotai_value'];
+				//明細の引当数を退避
+				$jyuchu_denpyo_no_array=array();
+				foreach($mail_jyuchu_header as $maildataH){
+					array_push($jyuchu_denpyo_no_array,$maildataH['jyuchu_denpyo_no']);
+				}//end foreach
+				$jyuchu_denpyo_no_array_q=$this->db->quote($jyuchu_denpyo_no_array);
+				$sql_selectM="SELECT syohin_code,sum(hikiate_su) as hikiate_sum,sum(yoyaku_hikiate_su) as yoyaku_hikiate_sum,max(hikiate_bi) as hikiate_bi,'0' as chk,'0' as y_chk FROM $this->user_schema.t_trn_jyuchu_meisai
+							WHERE jyuchu_denpyo_no in ($jyuchu_denpyo_no_array_q) AND (hikiate_su>0 or yoyaku_hikiate_su>0) AND sakujyo_flg='0' GROUP BY syohin_code";
+				try{$this->wkmailMeisai = $this->db->fetchAll($sql_selectM);}
+				catch(exception $e){throw $e;}
+				//ヘッダー・明細を一旦削除
+				$sql_deleteH="DELETE FROM $this->user_schema.t_trn_jyuchu_header
+						 	WHERE jyuchu_denpyo_no in ($jyuchu_denpyo_no_array_q)";
+				$this->dup_debug_text .= "【mailData_Chk 複数受注削除実施】SQL文[{$sql_deleteH}]" ;
+				try{$resultDelete = $this->db->query($sql_deleteH);}
+				catch (Exception $e) {throw $e;}
+				$sql_deleteM="DELETE FROM $this->user_schema.t_trn_jyuchu_meisai
+						 	WHERE jyuchu_denpyo_no in ($jyuchu_denpyo_no_array_q)";
+				try{$resultDelete = $this->db->query($sql_deleteM);}
+				catch (Exception $e) {throw $e;}
+
+				$this->dup_debug_text .= "【mailData_Chk 複数受注削除実施】SQL文[{$sql_deleteH}]　SQL文[{$sql_deleteM}]" ;
+				$this->param_array['torikomi_syurui_kbn']='1';//csvの更新とする為区分を変更
+			}else{//手入力の場合,同一ＣＳＶの中に同じ店舗伝票番号が存在した場合
+				$this->param_array['torikomi_syurui_kbn']=$mail_jyuchu_header[0]['torikomi_syurui_kbn'];
+				$this->result_array['ret']['code']='1';
+				$this->result_array['ret']['mes'][0]="異常終了\nこのファイルの中に、既に同じ店舗伝票番号で手入力されているか。\nＣＳＶファイル内に店舗伝票番号が重複して存在します。\n中身を確認して再度取込をお願いします。";
+			}//end if
+		}//end if
+	}//end function
+
+	/**
+	 * メール取込引当分が余った場合の引き戻し
+	 */
+	function jyuchu_su_modosi(){
+		if(strlen($this->wkJyuchuno_int)!==0){
+			$wkparam_array=$this->param_array;//一旦読み込んだＣＳＶの内容を別に退避　こうしないと情報が穴あきになってしまう。
+
+			//メール受注明細の引当数がＣＳＶ取込みの受注数より多き場合の対応
+			//余りの数は、キャンセル明細として追加
+			$sqlSelect_M="SELECT max(jyuchu_meisai_gyo) as jyuchu_meisai_gyo FROM $this->user_schema.t_trn_jyuchu_meisai
+						WHERE jyuchu_denpyo_no=?";
+			$aryParam = array($this->wkJyuchuno_int);
+			try{$jyuchu_meisai_gyo=$this->db->fetchOne($sqlSelect_M, $aryParam);}
+			catch(exception $e){throw $e;}
+
+			$hikiateMeisai_cnt=count($this->wkmailMeisai);
+			for($k=0;$k<$hikiateMeisai_cnt;$k++){
+				if($this->wkmailMeisai[$k]['chk']==='0' || $this->wkmailMeisai[$k]['y_chk']==='0'){
+					$jyuchu_meisai_gyo++;
+					$this->param_array['syohin_code']=$this->wkmailMeisai[$k]['syohin_code'];
+					if($this->wkmailMeisai[$k]['chk']==='0'){
+						$this->param_array['hikiate_su']=$this->wkmailMeisai[$k]['hikiate_sum'];
+					}else{
+						$this->param_array['hikiate_su']=0;
+					}//end if
+					if($this->wkmailMeisai[$k]['y_chk']==='0'){
+						$this->param_array['yoyaku_hikiate_su']=$this->wkmailMeisai[$k]['yoyaku_hikiate_sum'];
+					}else{
+						$this->param_array['yoyaku_hikiate_su']=0;
+					}//end if
+					$this->param_array['jyuchu_su']=$this->param_array['hikiate_su']+$this->param_array['yoyaku_hikiate_su'];
+					$this->param_array['jyuchu_denpyo_no']=$this->wkJyuchuno_int;
+					$this->param_array['jyuchu_meisai_gyo']=$jyuchu_meisai_gyo;
+					$this->param_array['cancel_kbn']='1';
+
+					$this->param_array['tenpo_denpyo_no']='';
+					$this->param_array['tenpo_meisai_gyo']='';
+					$this->param_array['syohin_name']='仮取込時過剰引当分の戻し';
+					$this->param_array['syohin_tnk']=0;
+					$this->param_array['jyuchuji_genka_tnk']=0;
+					$this->param_array['gaikoku_syohin_tnk']=0;
+					$this->param_array['kake_ritu']=0;
+					$this->param_array['syokei_kin']=0;
+					$this->param_array['syohin_option']='';
+					$this->param_array['jyuchuji_toriatukai_kbn']='0';
+					$this->param_array['jyuchuji_syohin_kbn']='0';
+					$this->param_array['ryohin_henpin_su']=0;
+					$this->param_array['furyohin_henpin_su']=0;
+					$this->param_array['henpin_jiyu_kbn']='';
+					$this->param_array['sakujyo_flg']='0';
+
+					$this->jyuchuMinsert2();
+					//引当戻しをした後ここだけ初期化
+					$this->param_array['hikiate_su']=0;
+					$this->param_array['yoyaku_hikiate_su']=0;
+					$this->param_array['cancel_kbn']='0';
+				}//end if
+			}//end for
+			$this->wkmailMeisai=array();
+			$this->param_array=array();
+			$this->param_array=$wkparam_array;//退避したデータを基に戻す。
+		}//end if
+	}//end function
+
+
+	/**
+	 * 各パラメータ初期化
+	 */
+	function paramInit(){
+		$this->param_array['tenpo_code']=null;
+		$this->param_array['jyuchu_denpyo_no']='';
+		$this->param_array['tenpo_denpyo_no']='';
+		$this->param_array['jyuchu_bi']='';
+		$this->param_array['torikomi_bi']='';//now()ヲ入れる
+		$this->param_array['jyuyou_check_kbn']='0';
+		$this->param_array['jyuyou_check_tantou']='';
+		$this->param_array['kakunin_check_kbn']='2';
+		$this->param_array['system_message_kbn']='';
+		$this->param_array['mail_jyotai_value']='';
+		$this->param_array['jyuchu_tag']='';
+		$this->param_array['torikomi_syurui_kbn']='1';//0：メール 1:CSV 2：手入力  メール取込制御
+		$this->param_array['jyuchu_cancel_kbn']='0';
+		$this->param_array['jyuchu_jyotai_kbn']='2';//0：取込情報不足  1：受注メール取込済  2：起票済み(CSVと手入力の場合)
+		$this->param_array['jyuchu_tantou_code']=$this->tantou;//担当コードを入れる
+		$this->param_array['hasou_kbn']='';
+		$this->param_array['siharai_kbn']='';
+		$this->param_array['goukei_kin']=0;
+		$this->param_array['zei_kin']=0;
+		$this->param_array['tesuryo_kin']=0;
+		$this->param_array['hasou_kin']=0;
+		$this->param_array['sonota_kin']=0;
+		$this->param_array['point']=0;
+		$this->param_array['syohin_kin']=0;
+		$this->param_array['bikou']='';
+		$this->param_array['nyukin_kin']=0;
+		$this->param_array['nyukin_kbn']='0';
+		$this->param_array['nyukin_bi']='';
+		$this->param_array['doukon_saki_jyuchu_denpyo_no']='';
+		$this->param_array['doukon_kouho_jyuchu_denpyo_no']='';
+		$this->param_array['hukusu_haisou_oyajyuchu_denpyo_no']='';
+		$this->param_array['hukusu_haisou_oya_flg']='0';
+		$this->param_array['nouhinsyo_insatusiji_bi']='';
+		$this->param_array['nouhinsyo_hakou_bi']='';
+		$this->param_array['nouhinsyo_text']='';
+		$this->param_array['syuka_kakutei_bi']='';
+		$this->param_array['syuka_jyunjyo']='';
+		$this->param_array['syuka_tantou_code']='';
+		$this->param_array['sagyosya_ran']='';
+		$this->param_array['pic_siji_naiyou']='';
+		$this->param_array['raberu_hakou_bi']='';
+		$this->param_array['raberu_hakou_flg']='0';
+		$this->param_array['haisou_bi']='';
+		$this->param_array['jikantaisitei_kbn']='';
+		$this->param_array['binsyu_kbn']='';
+		$this->param_array['seal1_kbn']='';
+		$this->param_array['seal2_kbn']='';
+		$this->param_array['seal3_kbn']='';
+		$this->param_array['seal4_kbn']='';
+		$this->param_array['eigyosyo_dome_flg']='';
+		$this->param_array['eigyosyo_name']='';
+		$this->param_array['okurijyo_kbn']='';
+		$this->param_array['ondo_kbn']=' ';
+		$this->param_array['gift_flg']='0';
+		$this->param_array['hasou_denpyo_no']='';
+		$this->param_array['credit_kbn']='0';
+		$this->param_array['credit_card_no']='';
+		$this->param_array['credit_meigi_nin']='';
+		$this->param_array['credit_yukou_kigen']='';
+		$this->param_array['credit_syonin_no']='';
+		$this->param_array['credit_syonin_kin']=0;
+		$this->param_array['credit_syonin_kbn']='0';
+		$this->param_array['credit_syonin_bi']='';
+		$this->param_array['credit_siharai_kaisu']='';
+		$this->param_array['credit_osori_kbn']='';
+		$this->param_array['credit_syonin_fax_insatu_bi']='';
+		$this->param_array['kokyaku_kbn']='0';
+		$this->param_array['jyuchu_name']='';
+		$this->param_array['jyuchu_kana']='';
+		$this->param_array['jyuchu_yubin_bangou']='';
+		$this->param_array['jyuchu_jyusyo1']='';
+		$this->param_array['jyuchu_jyusyo2']='';
+		$this->param_array['jyuchu_denwa']='';
+		$this->param_array['jyuchu_fax']='';
+		$this->param_array['jyuchu_mail_adr']='';
+		$this->param_array['tokusoku_kaisi_bi']='';
+		$this->param_array['saisyu_tokusoku_bi']='';
+		$this->param_array['tokusoku_cnt']=0;
+		$this->param_array['hasou_name']='';
+		$this->param_array['hasou_kana']='';
+		$this->param_array['hasou_yubin_bangou']='';
+		$this->param_array['hasou_jyusyo1']='';
+		$this->param_array['hasou_jyusyo2']='';
+		$this->param_array['hasou_denwa']='';
+		$this->param_array['hasou_fax']='';
+		$this->param_array['gaikoku_goukei_kin']=0;
+		$this->param_array['gaikoku_zei_kin']=0;
+		$this->param_array['gaikoku_tesuryo_kin']=0;
+		$this->param_array['gaikoku_hasou_kin']=0;
+		$this->param_array['gaikoku_sonota_kin']=0;
+		$this->param_array['gaikoku_syohin_kin']=0;
+		$this->param_array['gaikoku_nyukin_kin']=0;
+		$this->param_array['e_txt']='';
+		$this->param_array['syuka_yotei_bi']='';
+		$this->param_array['sakusei_bi']='';//now()ヲ入れる
+		$this->param_array['sakusei_tantou']=$this->tantou;//担当コードを入れる
+		$this->param_array['saisyu_kousin_bi']='';//now()ヲ入れる
+		$this->param_array['saisyu_kousin_tantou']=$this->tantou;//担当コードを入れる
+		$this->param_array['sakujyo_flg']='1';//受注取込時には1を入れる
+		$this->param_array['jyuchu_meisai_gyo']='';
+		$this->param_array['tenpo_meisai_gyo']='';
+		$this->param_array['syohin_code']='';
+		$this->param_array['syohin_name']='';
+		$this->param_array['jyuchu_su']=0;
+		$this->param_array['syohin_tnk']=0;
+		$this->param_array['jyuchuji_genka_tnk']=0;//マスタから引っ張る上書き禁止
+		$this->param_array['gaikoku_syohin_tnk']=0;
+		$this->param_array['kake_ritu']=10;
+		$this->param_array['syokei_kin']=0;
+		$this->param_array['syohin_option']='';
+		$this->param_array['cancel_kbn']='0';//必須
+		$this->param_array['doukon_moto_jyuchu_denpyo_no']='';
+		$this->param_array['doukon_moto_jyuchu_meisai_gyo']='';
+		$this->param_array['hikiate_su']=0;//必須
+		$this->param_array['yoyaku_hikiate_su']=0;//必須
+		$this->param_array['hikiate_bi']='';
+		$this->param_array['jyuchuji_toriatukai_kbn']='';//マスタから引っ張る上書き禁止
+		$this->param_array['jyuchuji_syohin_kbn']='';//マスタから引っ張る上書き禁止
+		$this->param_array['henpin_jiyu_kbn']='';
+		$this->param_array['koumoku_value']='';
+		$this->param_array['wkmail_adr']='';//楽天メールアドレス対策　受注メールでは、メールアドレスが入ってくるが、ＣＳＶでは許可がないとXXX@xxxx.xxxとなる為
+		$this->param_array['wk_sagyosya_ran']='';//取込エラー格納
+
+                // t_trn_jyuchu_header_subのオプション項目を初期化
+		$this->param_array['jyuchu_option1'] = '';
+		$this->param_array['jyuchu_option2'] = '';
+		$this->param_array['jyuchu_option3'] = '';
+		$this->param_array['jyuchu_option4'] = '';
+		$this->param_array['jyuchu_option5'] = '';
+		$this->param_array['jyuchu_option6'] = '';
+		$this->param_array['jyuchu_option7'] = '';
+		$this->param_array['jyuchu_option8'] = '';
+		$this->param_array['jyuchu_option9'] = '';
+		$this->param_array['jyuchu_option10'] = '';
+
+		$this->param_array['hitokoto_memo'] = '';
+		$this->param_array['message']       = '';
+		$this->param_array['noshi']         = '';
+		$this->param_array['rapping']       = '';
+	}
+
+	/**
+	 * システムメッセージ用退避領域クリア
+	 */
+	function errMsgInit(){
+		$this->jyuchuErrH_msg='';
+		$this->jyuchuErrM_msg='';
+		$this->jyuchuErr_msg='';
+		$this->wk_jyuchuMErr_msg='';
+	}
+
+	/**
+	 * 受注ヘッダー部分の追加
+	 */
+	function jyuchuHinsert2(){
+		$insHcolName_array=array('tenpo_code','jyuchu_bi','tenpo_denpyo_no','jyuyou_check_kbn','jyuyou_check_tantou','kakunin_check_kbn','mail_jyotai_value','torikomi_syurui_kbn','jyuchu_cancel_kbn','jyuchu_jyotai_kbn','jyuchu_tantou_code','hasou_kbn','siharai_kbn','goukei_kin','zei_kin','tesuryo_kin','hasou_kin','sonota_kin','point','syohin_kin','bikou','nyukin_kin','nyukin_kbn','nyukin_bi','doukon_kouho_jyuchu_denpyo_no','doukon_saki_jyuchu_denpyo_no','hukusu_haisou_oyajyuchu_denpyo_no','nouhinsyo_insatusiji_bi','nouhinsyo_hakou_bi','nouhinsyo_text','syuka_kakutei_bi','syuka_jyunjyo','syuka_tantou_code','sagyosya_ran','pic_siji_naiyou','raberu_hakou_bi','raberu_hakou_flg','haisou_bi','jikantaisitei_kbn','binsyu_kbn','seal1_kbn','seal2_kbn','seal3_kbn','seal4_kbn','eigyosyo_dome_kbn','eigyosyo_name','okurijyo_kbn','ondo_kbn','gift_flg','hasou_denpyo_no','credit_kbn','credit_card_no','credit_meigi_nin','credit_yukou_kigen','credit_syonin_no','credit_syonin_kin','credit_syonin_kbn','credit_syonin_bi','credit_siharai_kaisu','credit_osori_kbn','credit_syonin_fax_insatu_bi','kokyaku_kbn','kokyaku_code','jyuchu_name','jyuchu_kana','jyuchu_yubin_bangou','jyuchu_jyusyo1','jyuchu_jyusyo2','jyuchu_denwa','jyuchu_fax','jyuchu_mail_adr','tokusoku_kaisi_bi','saisyu_tokusoku_bi','tokusoku_cnt','hasou_name','hasou_kana','hasou_yubin_bangou','hasou_jyusyo1','hasou_jyusyo2','hasou_denwa','hasou_fax','gaikoku_goukei_kin','gaikoku_zei_kin','gaikoku_tesuryo_kin','gaikoku_hasou_kin','gaikoku_sonota_kin','gaikoku_syohin_kin','gaikoku_nyukin_kin','e_txt','syuka_yotei_bi','sakujyo_flg','jyuchu_tag','sakusei_bi');
+
+		$jyuchu_header = new Models_JyuchuHeader($this->user_schema, $this->db);
+
+		// [MEMO]Models_Entityを用いてINSERTを行なう場合、存在しないカラムをSETしても自動的に弾かれるためin_array()等を用いた確認処理は不要。
+		// ただし、$this->param_arrayには"t_trn_jyuchu_header"以外の受注系テーブルに入れる値が同じレベルに格納されている。
+		// この場合、意図せず値を入れてしまったり弾かれてしまったりという事象を回避可能か否か、という検証を時間の都合上が行えなかった。
+		// また、このin_array()を削除すると、受注系のテーブル以外のカラムに対してもpreg_matchを行なうことにより、パフォーマンスの低下が懸念される。
+		// そのため、あえて判定処理を残す。
+		foreach($this->param_array as $column_name => $value){
+			if(!in_array($column_name, $insHcolName_array, true)) continue;
+
+			$wkvalue = $value;
+			if(preg_match('/_su|_kin|point/', $column_name) === 1){
+				$wkvalue = (strlen($value) === 0 ? 0 : $value);
+			}else if($column_name === 'nouhinsyo_insatusiji_bi'){
+				$wkvalue = $value;
+			}else {
+				if ($column_name === 'sakusei_bi' && strlen($value) === 0) { continue; }
+				//TODO
+				//not nullのカラムも存在しているにも関わらす
+				//一律nullを設定していることで、登録に失敗・または想定してない値が設定されてしまう場合がある。
+				//値が存在してない場合はparamInit()の初期値を入れるべきかと思われる。
+				//あと''を入れる場合もnullになってしまうので注意するべき。
+				$wkvalue = (strlen($value) === 0 ? null : $value);
+			}
+
+			$jyuchu_header->set($column_name, $wkvalue);
+		}
+
+		if (!isset($this->param_array['sakusei_bi']) || strlen($this->param_array['sakusei_bi']) === 0) {
+			$jyuchu_header->set('sakusei_bi', QueryBuilder::raw('NOW()'));
+		}
+
+		$jyuchu_header->set('torikomi_bi', QueryBuilder::raw('NOW()'));
+
+		// 【2重取込用】原因が解明できたら削除して下さい
+		$this->dup_debug_text .= "【jyuchuHinsert2実施】パラメータ[" . print_r($this->param_array, true) . "]" ;
+		$this->dup_tenpo_code_array[] = $this->param_array['tenpo_code'] ;
+		$this->dup_tenpo_denpyo_no_array[] = $this->param_array['tenpo_denpyo_no'] ;
+
+		$jyuchu_header->insert($this->tantou);
+	}
+
+	/**
+	 * 受注明細部分の更新
+	 * 更新項目可変版
+	 * メールの更新のを加味する為、基本の動きはDELETE、insertになります。
+	 */
+	function jyuchuMinsert2(){
+		$meisaiCol_name_array=array('jyuchu_denpyo_no','jyuchu_meisai_gyo','tenpo_denpyo_no','tenpo_meisai_gyo','syohin_code','syohin_name','jyuchu_su','syohin_tnk','jyuchuji_genka_tnk','gaikoku_syohin_tnk','kake_ritu','syokei_kin','syohin_option','cancel_kbn','doukon_moto_jyuchu_denpyo_no','doukon_moto_jyuchu_meisai_gyo','hikiate_su','yoyaku_hikiate_su','hikiate_bi','jyuchuji_toriatukai_kbn','jyuchuji_syohin_kbn','ryohin_henpin_su','furyohin_henpin_su','henpin_jiyu_kbn','moto_jyuchu_meisai_gyo','sakujyo_flg');
+
+		$insert_params = array();
+
+		foreach($this->param_array as $column_name => $value){
+			if(in_array($column_name, $meisaiCol_name_array, true)){
+				if(preg_match('/_su|_kin|point|_tnk/',$column_name)===1){
+					$wkvalue=(strlen($value)===0 ? 0 : $value);
+				}else{
+					$wkvalue=(strlen($value)===0 ? null : $value);
+				}
+				$insert_params[$column_name] = $wkvalue;
+			}//endif
+		}//end foreach
+
+		$this->dup_debug_text .= "【jyuchuMinsert2実施】パラメータ[" . print_r($insert_params, true) . "]" ;
+		$jyuchu_meisai = new Models_JyuchuMeisai($this->user_schema, $this->db);
+		$jyuchu_meisai->set($insert_params);
+		$jyuchu_meisai->insert($this->tantou);
+
+		//商品マスタの初販売日と最終販売日の更新
+		if($this->param_array['cancel_kbn']=='0'){
+			$syohin_code=$this->param_array['syohin_code'];
+			$jyuchu_bi=$this->param_array['jyuchu_bi'];
+			$saisyu_kousin_tantou=$this->tantou;
+			hanbaibiKousin($this->db,$this->user_schema,$jyuchu_bi,$syohin_code,$saisyu_kousin_tantou);
+		}//end if
+	}//end function
+
+	/**
+	 * 受注モール部分の追加
+	 */
+	function jyuchuEinsert(){
+		$sql = "INSERT INTO $this->user_schema.t_trn_jyuchu_moru
+				SET
+					jyuchu_denpyo_no= :jyuchu_denpyo_no,
+					jyuchu_meisai_gyo= :jyuchu_meisai_gyo,
+					koumoku_value= :koumoku_value,
+					sakusei_bi= now(),
+					sakusei_tantou= :sakusei_tantou,
+					saisyu_kousin_bi= null,
+					saisyu_kousin_tantou= null,
+					sakujyo_flg= :sakujyo_flg
+				";
+
+		try{
+			$resultInsert = $this->db->query($sql,$this->param_array);
+		}catch(exception $e){throw $e;}
+	}//endfunction
+
+	/**
+	 * 受注ヘッダー部分の更新
+	 * 更新項目可変版
+	 */
+	function jyuchuHupdate2(){
+		if($this->param_array['jyuchu_mail_adr']=='xxx@xxx.xxx'){//楽天メールマスク対応
+			$headerCol_name_array=array('tenpo_code','jyuchu_denpyo_no','tenpo_denpyo_no','jyuchu_bi','jyuyou_check_kbn','jyuyou_check_tantou','kakunin_check_kbn','mail_jyotai_value','torikomi_syurui_kbn','jyuchu_cancel_kbn','jyuchu_jyotai_kbn','jyuchu_tantou_code','hasou_kbn','siharai_kbn','goukei_kin','zei_kin','tesuryo_kin','hasou_kin','sonota_kin','point','syohin_kin','bikou','nyukin_kin','nyukin_kbn','nyukin_bi','doukon_kouho_jyuchu_denpyo_no','doukon_saki_jyuchu_denpyo_no','hukusu_haisou_oyajyuchu_denpyo_no','hukusu_haisou_oya_flg','nouhinsyo_insatusiji_bi','nouhinsyo_hakou_bi','nouhinsyo_text','syuka_kakutei_bi','syuka_jyunjyo','syuka_tantou_code','sagyosya_ran','pic_siji_naiyou','raberu_hakou_bi','raberu_hakou_flg','haisou_bi','jikantaisitei_kbn','binsyu_kbn','seal1_kbn','seal2_kbn','seal3_kbn','seal4_kbn','eigyosyo_dome_kbn','eigyosyo_name','okurijyo_kbn','ondo_kbn','gift_flg','hasou_denpyo_no','credit_kbn','credit_card_no','credit_meigi_nin','credit_yukou_kigen','credit_syonin_no','credit_syonin_kin','credit_syonin_kbn','credit_syonin_bi','credit_siharai_kaisu','credit_osori_kbn','credit_syonin_fax_insatu_bi','kokyaku_kbn','kokyaku_code','jyuchu_name','jyuchu_kana','jyuchu_yubin_bangou','jyuchu_jyusyo1','jyuchu_jyusyo2','jyuchu_denwa','jyuchu_fax','tokusoku_kaisi_bi','saisyu_tokusoku_bi','tokusoku_cnt','hasou_name','hasou_kana','hasou_yubin_bangou','hasou_jyusyo1','hasou_jyusyo2','hasou_denwa','hasou_fax','gaikoku_goukei_kin','gaikoku_zei_kin','gaikoku_tesuryo_kin','gaikoku_hasou_kin','gaikoku_sonota_kin','gaikoku_syohin_kin','gaikoku_nyukin_kin','e_txt','syuka_yotei_bi','sakujyo_flg','jyuchu_tag');
+
+		}else{
+			$headerCol_name_array=array('tenpo_code','jyuchu_denpyo_no','tenpo_denpyo_no','jyuchu_bi','jyuyou_check_kbn','jyuyou_check_tantou','kakunin_check_kbn','mail_jyotai_value','torikomi_syurui_kbn','jyuchu_cancel_kbn','jyuchu_jyotai_kbn','jyuchu_tantou_code','hasou_kbn','siharai_kbn','goukei_kin','zei_kin','tesuryo_kin','hasou_kin','sonota_kin','point','syohin_kin','bikou','nyukin_kin','nyukin_kbn','nyukin_bi','doukon_kouho_jyuchu_denpyo_no','doukon_saki_jyuchu_denpyo_no','hukusu_haisou_oyajyuchu_denpyo_no','hukusu_haisou_oya_flg','nouhinsyo_insatusiji_bi','nouhinsyo_hakou_bi','nouhinsyo_text','syuka_kakutei_bi','syuka_jyunjyo','syuka_tantou_code','sagyosya_ran','pic_siji_naiyou','raberu_hakou_bi','raberu_hakou_flg','haisou_bi','jikantaisitei_kbn','binsyu_kbn','seal1_kbn','seal2_kbn','seal3_kbn','seal4_kbn','eigyosyo_dome_kbn','eigyosyo_name','okurijyo_kbn','ondo_kbn','gift_flg','hasou_denpyo_no','credit_kbn','credit_card_no','credit_meigi_nin','credit_yukou_kigen','credit_syonin_no','credit_syonin_kin','credit_syonin_kbn','credit_syonin_bi','credit_siharai_kaisu','credit_osori_kbn','credit_syonin_fax_insatu_bi','kokyaku_kbn','kokyaku_code','jyuchu_name','jyuchu_kana','jyuchu_yubin_bangou','jyuchu_jyusyo1','jyuchu_jyusyo2','jyuchu_denwa','jyuchu_fax','jyuchu_mail_adr','tokusoku_kaisi_bi','saisyu_tokusoku_bi','tokusoku_cnt','hasou_name','hasou_kana','hasou_yubin_bangou','hasou_jyusyo1','hasou_jyusyo2','hasou_denwa','hasou_fax','gaikoku_goukei_kin','gaikoku_zei_kin','gaikoku_tesuryo_kin','gaikoku_hasou_kin','gaikoku_sonota_kin','gaikoku_syohin_kin','gaikoku_nyukin_kin','e_txt','syuka_yotei_bi','sakujyo_flg','jyuchu_tag');
+		}//end if
+
+		$jyuchu_denpyo_no=$this->param_array['jyuchu_denpyo_no'];
+		$sql_update = "UPDATE $this->user_schema.t_trn_jyuchu_header
+		SET ";
+		$aryValue = array();
+
+		foreach($this->param_array as $key=>$value){
+			if(in_array($key,$headerCol_name_array)){
+				$wkkey=$key;
+				if($key==='sakujyo_flg'){
+					$sakujyo_flg=(strlen($value)===0 ? '0' : $this->db->quote($value));
+				}else if($key=='nouhinsyo_insatusiji_bi'){
+					$aryValue[] = $value;
+					$sql_update.="$wkkey = ?,\n";
+				}else {
+					if ($key === 'jyuchu_tag') {
+						if ($value === '') {
+							continue;
+						}
+					}
+					$aryValue[]=(strlen($value)===0 ? null : $value);
+					$sql_update.="$wkkey = ?,\n";
+				}//end if
+			}//endif
+		}//end foreach
+		$sql_update.="
+						torikomi_bi = now(),
+						saisyu_kousin_bi= now(),
+						saisyu_kousin_tantou= {$this->db->quote($this->tantou)}
+				 WHERE
+						jyuchu_denpyo_no= {$this->db->quote($jyuchu_denpyo_no)}
+				";
+
+		$this->dup_debug_text .= "【jyuchuHupdate2実施】SQL文[{$sql_update}] パラメータ[" . print_r($aryValue, true) . "]" ;
+		try{$resultUpdate = $this->db->query($sql_update,$aryValue);}
+		catch (Exception $e) {throw $e;}
+
+	}//end function
+
+	/**
+	 * t_trn_jyuchu_header_subの更新
+	 */
+	function jyuchuHupdate3(){
+		$updHoptionColName_array=array('hitokoto_memo','message','noshi','rapping','jyuchu_option1','jyuchu_option2','jyuchu_option3','jyuchu_option4','jyuchu_option5','jyuchu_option6','jyuchu_option7','jyuchu_option8','jyuchu_option9','jyuchu_option10');
+
+		$jyuchu_denpyo_no=$this->param_array['jyuchu_denpyo_no'];
+		$sql_update = "UPDATE $this->user_schema.t_trn_jyuchu_header_sub
+		SET ";
+		$aryValue = array();
+
+		foreach($this->param_array as $key=>$value){
+			if(in_array($key,$updHoptionColName_array)){
+				$aryValue[] = $value;
+				$sql_update.="$key = ?,";
+			}
+		}
+		$sql_update.="
+						saisyu_kousin_bi= now(),
+						saisyu_kousin_tantou= {$this->db->quote($this->tantou)}
+				 WHERE
+						jyuchu_denpyo_no= {$this->db->quote($jyuchu_denpyo_no)}
+				";
+		try{
+			$resultUpdate = $this->db->query($sql_update,$aryValue);
+		} catch (Exception $e) {
+			throw $e;
+		}
+	}
+
+	/**
+	 * 商品情報付加
+	 * 追加情報にてわからない、原価単価、商品区分、jan、商品名をここで入れる。
+	 */
+	function meisaiSyohin_Select(){
+		$preg_ptn="/__S(.+?)__/";
+		//続けて指定されている場合は続けて後ろにくっつける。
+		if(preg_match_all($preg_ptn,$this->param_array['syohin_option'],$syohin_option)){
+			for($i=0;$i<count($syohin_option[1]);$i++){
+				$this->param_array['syohin_code']=$this->param_array['syohin_code'].$syohin_option[1][$i];
+			}//end for
+		}//end if
+
+		if(trim($this->param_array['syohin_code'])!==''){
+			$smh= new ne_Syohin();
+			$smh->set_db($this->db);
+			$smh->set_user_schema($this->user_schema);
+			$smh->set_syohinCode_int($this->param_array['syohin_code']);
+			$smh->getSyohinMst();
+			$result_array = $smh->get_result_array();
+			if($result_array===FALSE){
+				$this->syohinChk_flg="1";//商品マスタが存在しない
+			}else{
+				$this->param_array['jyuchuji_syohin_kbn']=$result_array['syohin_kbn'];
+				$this->param_array['jyuchuji_toriatukai_kbn']=$result_array['toriatukai_kbn'];
+				$this->param_array['jyuchuji_genka_tnk']=$result_array['genka_tnk'];
+				if(strlen($this->param_array['syohin_name'])===0){
+					$this->param_array['syohin_name']=$result_array['syohin_name'];
+				}//end if
+			  	$this->syohinChk_flg="0";//商品マスタが存在する。
+		}//end if
+		}else{
+		  	$this->syohinChk_flg="1";//商品マスタが存在しない
+		}//end if
+	}//end function
+
+	/**
+	 * 受注データtrim
+	 * 日本と、海外サイトの取り込みデータの変換
+	 * 住所、電話番号、売価の移動（＄なら、外国金額項目に移動）
+	 */
+	function jyuchu_data_trim(){
+		if($this->param_array['kuni_code']==='1'){
+			//住所項目を整復　但し　外国住所は　整復しない　表記法が一定ではなく整復方法が定まらない為。
+			$this->param_array['jyuchu_name']=str_replace('　',' ',trim($this->param_array['jyuchu_name']));
+			$this->param_array['jyuchu_kana']=str_replace('　',' ',trim($this->param_array['jyuchu_kana']));
+			$this->param_array['hasou_name']=str_replace('　',' ',trim($this->param_array['hasou_name']));
+			$this->param_array['hasou_kana']=str_replace('　',' ',trim($this->param_array['hasou_kana']));
+
+			$haihun_replace_array=array(
+			'―'=>'ー',
+			"?"=>'？',
+			'　'=>' ',
+			'ヶ'=>'ケ',
+			'ヵ'=>'ケ',
+			'20条'=>'二十条',
+			'21条'=>'二十一条',
+			'22条'=>'二十二条',
+			'23条'=>'二十三条',
+			'24条'=>'二十四条',
+			'25条'=>'二十五条',
+			'26条'=>'二十六条',
+			'27条'=>'二十七条',
+			'28条'=>'二十八条',
+			'29条'=>'二十九条',
+			'30条'=>'三十条',
+			'31条'=>'三十一条',
+			'32条'=>'三十二条',
+			'33条'=>'三十三条',
+			'34条'=>'三十四条',
+			'35条'=>'三十五条',
+			'36条'=>'三十六条',
+			'37条'=>'三十七条',
+			'38条'=>'三十八条',
+			'39条'=>'三十九条',
+			'40条'=>'四十条',
+			'41条'=>'四十一条',
+			'42条'=>'四十二条',
+			'43条'=>'四十三条',
+			'44条'=>'四十四条',
+			'45条'=>'四十五条',
+			'46条'=>'四十六条',
+			'47条'=>'四十七条',
+			'48条'=>'四十八条',
+			'49条'=>'四十九条',
+			'50条'=>'五十条',
+			'51条'=>'五十一条',
+			'11条'=>'十一条',
+			'12条'=>'十二条',
+			'13条'=>'十三条',
+			'14条'=>'十四条',
+			'15条'=>'十五条',
+			'16条'=>'十六条',
+			'17条'=>'十七条',
+			'18条'=>'十八条',
+			'19条'=>'十九条',
+			'1条'=>'一条',
+			'2条'=>'二条',
+			'3条'=>'三条',
+			'4条'=>'四条',
+			'5条'=>'五条',
+			'6条'=>'六条',
+			'7条'=>'七条',
+			'8条'=>'八条',
+			'9条'=>'九条',
+			'10条'=>'十条',
+			'２０条'=>'二十条',
+			'２１条'=>'二十一条',
+			'２２条'=>'二十二条',
+			'２３条'=>'二十三条',
+			'２４条'=>'二十四条',
+			'２５条'=>'二十五条',
+			'２６条'=>'二十六条',
+			'２７条'=>'二十七条',
+			'２８条'=>'二十八条',
+			'２９条'=>'二十九条',
+			'３０条'=>'三十条',
+			'３１条'=>'三十一条',
+			'３２条'=>'三十二条',
+			'３３条'=>'三十三条',
+			'３４条'=>'三十四条',
+			'３５条'=>'三十五条',
+			'３６条'=>'三十六条',
+			'３７条'=>'三十七条',
+			'３８条'=>'三十八条',
+			'３９条'=>'三十九条',
+			'４０条'=>'四十条',
+			'４１条'=>'四十一条',
+			'４２条'=>'四十二条',
+			'４３条'=>'四十三条',
+			'４４条'=>'四十四条',
+			'４５条'=>'四十五条',
+			'４６条'=>'四十六条',
+			'４７条'=>'四十七条',
+			'４８条'=>'四十八条',
+			'４９条'=>'四十九条',
+			'５０条'=>'五十条',
+			'５１条'=>'五十一条',
+			'１１条'=>'十一条',
+			'１２条'=>'十二条',
+			'１３条'=>'十三条',
+			'１４条'=>'十四条',
+			'１５条'=>'十五条',
+			'１６条'=>'十六条',
+			'１７条'=>'十七条',
+			'１８条'=>'十八条',
+			'１９条'=>'十九条',
+			'１条'=>'一条',
+			'２条'=>'二条',
+			'３条'=>'三条',
+			'４条'=>'四条',
+			'５条'=>'五条',
+			'６条'=>'六条',
+			'７条'=>'七条',
+			'８条'=>'八条',
+			'９条'=>'九条',
+			'１０条'=>'十条'
+			);//
+			$this->param_array['jyuchu_jyusyo1'] = str_replace( array_keys( $haihun_replace_array), array_values( $haihun_replace_array), trim($this->param_array['jyuchu_jyusyo1']));
+			$this->param_array['jyuchu_jyusyo2'] = str_replace( array_keys( $haihun_replace_array), array_values( $haihun_replace_array), trim($this->param_array['jyuchu_jyusyo2']));
+			$this->param_array['hasou_jyusyo1'] = str_replace( array_keys( $haihun_replace_array), array_values( $haihun_replace_array), trim($this->param_array['hasou_jyusyo1']));
+			$this->param_array['hasou_jyusyo2'] = str_replace( array_keys( $haihun_replace_array), array_values( $haihun_replace_array), trim($this->param_array['hasou_jyusyo2']));
+
+			$denwa_yubin_replace_array=array('―'=>'','-'=>'','ー'=>'','‐'=>'','－'=>'',' '=>'','　'=>'');//電話・郵便用
+			$this->param_array['jyuchu_denwa'] = str_replace( array_keys( $denwa_yubin_replace_array), array_values( $denwa_yubin_replace_array), trim($this->param_array['jyuchu_denwa']));
+			$this->param_array['jyuchu_yubin_bangou'] = str_replace( array_keys( $denwa_yubin_replace_array), array_values( $denwa_yubin_replace_array), trim($this->param_array['jyuchu_yubin_bangou']));
+			$this->param_array['hasou_denwa'] = str_replace( array_keys( $denwa_yubin_replace_array), array_values( $denwa_yubin_replace_array), trim($this->param_array['hasou_denwa']));
+			$this->param_array['hasou_yubin_bangou'] = str_replace( array_keys( $denwa_yubin_replace_array), array_values( $denwa_yubin_replace_array), trim($this->param_array['hasou_yubin_bangou']));
+
+			$space_rep_array=array('jyuchu_jyusyo1','jyuchu_jyusyo2','hasou_jyusyo1','hasou_jyusyo2');
+			foreach($space_rep_array as $space_rep){
+				$this->param_array["$space_rep"]=mb_ereg_replace('\s{2,}',' ',$this->param_array["$space_rep"]);
+			}//end foreach
+		}//end if
+
+		//メールアドレスに全角あったら半角に
+		$email_replace_array=array('―'=>'-','ー'=>'-','‐'=>'-','－'=>'-');//e-mail用
+		$this->param_array['jyuchu_mail_adr'] = str_replace( array_keys( $email_replace_array), array_values($email_replace_array), trim($this->param_array['jyuchu_mail_adr']));
+
+
+		//半角文字\n半角文字だとSQLSTATE[HY093]: Invalid parameter number: no parameters were boundになるから  nouhinsyo_text  pic_siji_naiyou
+		$this->param_array['bikou']=strtr($this->param_array['bikou'],"\n"," \n ");
+		$this->param_array['bikou']=strtr($this->param_array['bikou'],":"," : ");
+
+		$this->meisai_data_trim();
+	}//end function
+
+	// 明細行単位でのreplace
+	private function meisai_data_trim(){
+		//商品オプションの改行を置換
+		$pattern = array("\r\n", "\n", "\r");
+		$this->param_array['syohin_option'] = str_replace($pattern, '|', $this->param_array['syohin_option']);
+
+		//商品コードの後ろに空白が入るのでtrim 仮取込時過剰引当分の戻しが余分に発生していた対応 20080903
+		$this->param_array['syohin_code'] = trim($this->param_array['syohin_code']);
+	}
+
+	/**
+	 * 店舗別備考変換
+	 */
+	function bikouCnv(){
+		$tenpo_code = $this->db->quote($this->tenpoCode_int);
+		$sql="SELECT before_bikou,after_bikou FROM $this->user_schema.t_mst_tenpo_bikou_chk WHERE tenpo_code=$tenpo_code AND chk_flg='1' AND sakujyo_flg='0'";
+
+		$bikouCnv_array = $this->db->fetchAll($sql);
+
+		if(count($bikouCnv_array)!==0){
+			$cbc=new ne_JyuchuCsvBikouCnv();
+			$cbc->set_bikouCnv_array($bikouCnv_array);
+			$cbc->set_param_array($this->param_array);
+			$cbc->execBikouCnv();
+			$this->param_array=$cbc->get_param_array();
+		}//end if
+
+	}//end function
+
+	/**
+	 * 店舗別規定値設定
+	 */
+	function defaultSet(){
+		$tenpo_code = $this->db->quote($this->tenpoCode_int);
+		$sql="SELECT set_value FROM $this->user_schema.t_mst_tenpo_default_chk WHERE tenpo_code=$tenpo_code AND chk_flg='1' AND sakujyo_flg='0'";
+
+		$defaultSet_array = $this->db->fetchAll($sql);
+		if(count($defaultSet_array)!==0){
+			$cds=new ne_JyuchuCsvDefault();
+			$cds->set_db($this->db);
+			$cds->set_user_schema($this->user_schema);
+			$cds->set_defaultSet_array($defaultSet_array);
+			$cds->set_param_array($this->param_array);
+			$cds->execDefaultset();
+			$this->param_array=$cds->get_param_array();
+		}//end if
+
+	}//end function
+
+	/**
+	 * 受注データ一括チェック
+	 * 重複チェック
+	 * 楽天ポイントチェックもやってます
+	 * バッチ取込の場合は、情報不足でも取り込むので
+	 * ココのチェックでは取込は止めない。
+	 */
+	function jdata_check(){
+		$this->result_array['ret']['code']='0';
+		$this->_getTenpoMst();//国コードとモールコードget
+		$tmpRowarrayCnt_int=count($this->tmpRow_array);
+		$this->result_array['ret']['csv_cnt']=0;
+		$this->errMsgInit();//システムメッセージ用退避領域クリア
+		$errMsg_array=array();
+		if($tmpRowarrayCnt_int===0){
+			array_push($errMsg_array,"有効なデータは０件でした。ファイルの内容をご確認下さい。\n");
+		}//end if
+		for($i=0;$i<$tmpRowarrayCnt_int;$i++){
+			$this->paramInit();//初期化
+
+			$this->tmpRow_arrayOne=$this->tmpRow_array[$i];//一件リード
+			$this->result_array['ret']['csv_cnt']++;//行数カウント
+
+			$this->param_array['tenpo_code']=$this->tenpoCode_int;
+			if($this->isAllInOneHeaderSet()){
+				// オールインワンクラスでエラーメッセージがセットされていた場合、エラーメッセージ配列に追加して以後の処理を飛ばす
+				// ここで判定しないとヘッダー・明細を移送の際のforeachでwarningが出てしまうため
+				if(!empty($this->tmpRow_array['ret']['mes'])) {
+					foreach($this->tmpRow_array['ret']['mes'] as $message) {
+						$errMsg_array[] = $message;
+					}
+					break;
+				}
+				//連想配列をtmpRow_array→param_array なのでココで一度にヘッダーと明細の項目の移送が完了
+				foreach($this->tmpRow_arrayOne as $key=>$value){
+					$this->param_array[$key]=$value;
+				}//end foreach
+			}else{
+				$this->table_name=$this->tablenameH_str;//変換マスタから受注ヘッダー用の情報取得
+				$this->csvhenkanM_Select();
+				$this->jyuchuH_Insert();//ヘッダー項目を移送
+			}//end if
+			$this->defaultSet();//店舗別規定設定
+			if($this->param_array['kuni_code']==='1'){
+
+				//楽天ポイント承認確認
+				if(strlen($this->param_array['point'])!==0 && $this->param_array['point_syonin_flg']==='0'){
+					array_push($errMsg_array,"受注番号：".$this->param_array['tenpo_denpyo_no']."　楽天ポイント承認がされていない受注です。\n");
+				}//end if
+
+				//楽天オークション落札確認
+				if($this->param_array['rakusatu_flg']==='0'){
+					array_push($errMsg_array,"受注番号：".$this->param_array['tenpo_denpyo_no']."　落札者のデータではありません。\n");
+				}//end if
+
+				//取込情報不足チェック
+				$err_flg='0';
+				$msg_str='';
+				if(strlen($this->param_array['hasou_kbn'])===0){$err_flg='1';$msg_str.="・発送方法が取り込めませんでした。\n";}
+				if(strlen($this->param_array['siharai_kbn'])===0){$err_flg='1';$msg_str.="・支払方法が取り込めませんでした。\n";}
+				if(strlen($this->param_array['jyuchu_name'])===0){$err_flg='1';$msg_str.="・購入者名が取り込めませんでした。\n";}
+				if(strlen(trim($this->param_array['jyuchu_jyusyo1']))===0){$err_flg='1';$msg_str.="・購入者住所が取り込めませんでした。\n";}
+				if(strlen(trim($this->param_array['jyuchu_denwa']).trim($this->param_array['jyuchu_mail_adr']))===0){$err_flg='1';$msg_str.="・購入者電話番号かemailアドレスが取り込めませんでした。\n";}
+				if(strlen(trim($this->param_array['hasou_name']))===0){$err_flg='1';$msg_str.="・送り先名が取り込めませんでした。\n";}
+				if(strlen(trim($this->param_array['hasou_jyusyo1']))===0){$err_flg='1';$msg_str.="・送り先住所が取り込めませんでした。\n";}
+
+				if($err_flg==='1'){
+					/*
+					 * 受注一括登録 - 「取込情報不足」の仕様
+					 * ※補足: 受注一括登録 - 「取込情報不足」の仕様
+					 *   NOTE: 受注伝票の作業用欄の値をエラー文にいれるのは、「取り込み情報不足」である
+					 *   という情報が入るため。これを表示させることで受注一括登録する担当者と
+					 *   実際に確認待ちを確認して進める担当者が異なる場合にも、受注一括登録の担当者に
+					 *   情報が足りていないことを気づいてもらうことができる。
+					 *
+					 *   モールごと分岐の存在理由: このコメントを書いた時点で、資料がないため、
+					 *   推測となるが、CSVには受注伝票の作業者欄にあたる値が存在しない場合、
+					 *   $param_arrayには、値が入らないため、処理が落ちてしまう。
+					 *   それを避けるための仕様と思われる。
+					 *
+					 *   FIXME: 受注伝票の作業用欄をエラー文に追加しているが、これはデータが
+					 *   取込情報不足でエラーが出た際に作業用欄に「取込情報不足」を示すエラー文以外が
+					 *   入っている場合においても追加される。そのため以下のようなことが起きることに注意する。
+					 *
+					 *   ex) Wowma(旧Bidders, 旧DeNAショッピング)の独自処理において以下のようなエラー文となる。
+					 *     受注番号：167740746　情報が不足しています。1行目
+					 *     ・購入者住所が取り込めませんでした。
+					 *     クーポン利用額=3
+					 *
+					 *  上記でいうと「クーポン利用額=3」が作業用欄に入る値となる。
+					 */
+					if($this->param_array['moru_code']!='6' && $this->param_array['moru_code']!='10' && $this->param_array['moru_code']!='11'){
+						array_push($errMsg_array,"受注番号：".$this->param_array['tenpo_denpyo_no']."　情報が不足しています。".$this->result_array['ret']['csv_cnt']."行目\n".$msg_str.$this->param_array['sagyosya_ran']."\n");
+					}//end if
+				}//end if
+				
+			}//end if
+
+		}//end for
+
+		if(count($errMsg_array)>0){
+			$this->result_array['ret']['code']='1';
+			array_unshift($errMsg_array,"\n《下記の理由により今回取込対象のデータは全て取り込まれておりません。》\n《データ内容を御確認後再度取込直して下さい。》\n");
+			$this->result_array['ret']['mes']=$errMsg_array;
+		}else{
+			$this->result_array['ret']['code']='0';
+			$this->result_array['ret']['mes']=array();
+		}//end if
+	}//end function
+
+	/**
+	 * ＣＳＶからt_trn_jyuchu_meisaiに取り込むまで
+	 */
+	function set_jyuchu_meisai(){
+		//param_array　のヘッダ情報は基本的に1行目にしか持っていない。
+		//各明細でgiftの判定を行うには、1行目の判定を参照する必要が有るため、tmp変数で保持する。
+		//受注確認内容設定でgift_flg 参照のため。
+		//理想は、ここじゃなくて param_array 作る時にヘッダ項目は全て1行目に合わせるのが最良だが。
+		if ($this->tmp_jyuchu_denpyo_no === $this->param_array['jyuchu_denpyo_no']){
+			//gift_flg == '1' が強い。万一入れ違ってる場合の為の考慮。
+			if ($this->param_array['gift_flg'] == '1' || $this->tmp_gift_flg == '1'){
+				$this->param_array['gift_flg'] = '1';
+				$this->tmp_gift_flg = '1';
+			}else{
+				$this->tmp_gift_flg = $this->param_array['gift_flg'];
+			}
+		} else {
+			$this->tmp_jyuchu_denpyo_no = $this->param_array['jyuchu_denpyo_no'];
+			$this->tmp_gift_flg = $this->param_array['gift_flg'];
+		}
+
+		$jdc=new ne_JdataChk();//取込データのチェックモジュールのインスタンスを作ってます。
+		$jdc->set_db($this->db);
+		$jdc->set_user_schema($this->user_schema);
+		$jdc->setIsMailTorikomi($this->is_mail_torikomi);
+		$jdc->set_param_array($this->param_array);
+
+		$jdc->JdataM_Chk();//ここで引っ掛かったら要判断待ち
+		$this->jyuchuErrM_msg=$jdc->get_errMsgkbn_str();
+
+		$this->param_array=$jdc->get_param_array();
+
+		$this->MchkHeader_update();//明細行のエラーメッセージをヘッダーのSystemMessageに追加
+
+		$syohin_code = $this->param_array['syohin_code'] ;
+		// 商品情報自動作成が有効な場合「仮取込時過剰引当分の戻し」かチェックする値を「元のモール側の商品コード」に揃える。
+		// (チェック対象はCSVの「元のモール側の商品コード($this->wkmailMeisai[$j]['syohin_code'])」と、
+		//  受注伝票の「商品情報自動作成された商品コード$syohin_code」になっているので、揃える)
+		if( !is_null($this->regist_syohin_from_jyuchu) ) {
+			$sql = "SELECT syohin_code FROM {$this->user_schema}.t_mst_syohin_kihon WHERE org_tenpo_syohin_code = ?" ;
+			$org_tenpo_syohin_code = $this->db->fetchOne($sql, array($syohin_code)) ;
+			// 商品情報自動作成で作成された商品の場合、「元のモール側の商品コード」に$syohin_codeを変更
+			if( $org_tenpo_syohin_code !== false ) {
+				$syohin_code = $org_tenpo_syohin_code ;
+			}
+		}
+
+		//引当数編集
+		//予約引当対応　2008-05-14
+		if($hikiateMeisai_cnt!==0){
+			$hikiateMeisai_cnt=count($this->wkmailMeisai);
+			for($j=0;$j<$hikiateMeisai_cnt;$j++){
+				if($this->wkmailMeisai[$j]['syohin_code']===$syohin_code && $this->wkmailMeisai[$j]['chk']==='0'){
+					if($this->param_array['jyuchu_su'] >= $this->wkmailMeisai[$j]['hikiate_sum']){
+						$this->param_array['hikiate_su']=$this->wkmailMeisai[$j]['hikiate_sum'];
+						$this->param_array['hikiate_bi']=$this->wkmailMeisai[$j]['hikiate_bi'];
+						$this->wkmailMeisai[$j]['chk']='1';
+					}else{
+						$this->param_array['hikiate_su']=$this->param_array['jyuchu_su'];
+						$this->param_array['hikiate_bi']=$this->wkmailMeisai[$j]['hikiate_bi'];
+						$this->wkmailMeisai[$j]['hikiate_sum']=$this->wkmailMeisai[$j]['hikiate_sum'] - $this->param_array['jyuchu_su'];
+					}//end if
+				}//end if
+				if($this->wkmailMeisai[$j]['syohin_code']===$syohin_code && $this->wkmailMeisai[$j]['y_chk']==='0'){
+					if($this->param_array['jyuchu_su'] - $this->param_array['hikiate_su'] >= $this->wkmailMeisai[$j]['yoyaku_hikiate_sum']){
+						$this->param_array['yoyaku_hikiate_su']=$this->wkmailMeisai[$j]['yoyaku_hikiate_sum'];
+						$this->param_array['hikiate_bi']=$this->wkmailMeisai[$j]['hikiate_bi'];
+						$this->wkmailMeisai[$j]['y_chk']='1';
+					}else{
+						$this->param_array['yoyaku_hikiate_su']=$this->param_array['jyuchu_su'] - $this->param_array['hikiate_su'];
+						$this->param_array['hikiate_bi']=$this->wkmailMeisai[$j]['hikiate_bi'];
+						$this->wkmailMeisai[$j]['yoyaku_hikiate_sum']=$this->wkmailMeisai[$j]['yoyaku_hikiate_sum'] - $this->param_array['yoyaku_hikiate_su'];
+					}//end if
+				}//end if
+			}//end for
+		}//end if
+
+		//明細キャンセル編集
+		if($this->wkjyuchu_cancel_kbn!=='0'){
+			$this->param_array['cancel_kbn']='1';
+		}//end if
+
+		$this->jyuchuMinsert2();//明細行更新
+	}//end function
+
+	/**
+	 * セットマスタから展開された構成商品を受注明細に
+	 * 取り込む
+	 */
+	function set_setsyohin_meisai(){
+		// 展開前のセット商品の情報を記憶しておく
+		$exp_before = $this->param_array ;
+
+		$set_syohin_code=$this->param_array['syohin_code'];
+		$wk_setjyuchu_su=$this->param_array['jyuchu_su'];
+		$wk_setsyohin_name=$this->param_array['syohin_name'];
+		$setsyohin_array_cnt=count($this->setsyohin_array);
+		$exp_after_array = array() ;
+		for($i=0;$i<$setsyohin_array_cnt;$i++){
+			$this->param_array['hikiate_su']=0;
+			if($i===0){
+				$this->param_array['jyuchu_meisai_gyo'] = $this->meisaiGyo_int;
+				$this->param_array['syohin_code']=$this->setsyohin_array[$i]['syohin_code'];
+				$this->param_array['syohin_name']=$set_syohin_code.' '.$wk_setsyohin_name.' 【'.$wk_setjyuchu_su.'個】 | '.$this->setsyohin_array[$i]['syohin_name'];
+				$this->param_array['jyuchu_su']=$this->setsyohin_array[$i]['suryo'] * $wk_setjyuchu_su;
+				$this->param_array['jyuchuji_syohin_kbn']=$this->setsyohin_array[$i]['syohin_kbn'];
+				$this->param_array['jyuchuji_toriatukai_kbn']=$this->setsyohin_array[$i]['toriatukai_kbn'];
+				$this->param_array['jyuchuji_genka_tnk']=$this->setsyohin_array[$i]['genka_tnk'];
+				$this->param_array['set_syohin_code']=$set_syohin_code;
+			}else{
+				$this->param_array['jyuchu_meisai_gyo'] = $this->meisaiGyo_int;
+				$this->param_array['syohin_code']=$this->setsyohin_array[$i]['syohin_code'];
+				$this->param_array['syohin_name']=$set_syohin_code.' '.$wk_setsyohin_name.' 【'.$wk_setjyuchu_su.'個】 | '.$this->setsyohin_array[$i]['syohin_name'];
+				$this->param_array['jyuchu_su']=$this->setsyohin_array[$i]['suryo'] * $wk_setjyuchu_su;
+				$this->param_array['jyuchuji_syohin_kbn']=$this->setsyohin_array[$i]['syohin_kbn'];
+				$this->param_array['jyuchuji_toriatukai_kbn']=$this->setsyohin_array[$i]['toriatukai_kbn'];
+				$this->param_array['jyuchuji_genka_tnk']=$this->setsyohin_array[$i]['genka_tnk'];
+				$this->param_array['set_syohin_code']=$set_syohin_code;
+				$this->param_array['syohin_tnk']=0;
+				$this->param_array['syokei_kin']=0;
+			}
+			$this->meisaiGyo_int++;
+			$this->set_jyuchu_meisai();//引当数の引き継ぎと明細の登録
+
+			$exp_after_array[] = $this->param_array ;
+			//引当初期化
+			$this->param_array['hikiate_su']=0;
+			$this->param_array['hikiate_bi']='';
+			$this->param_array['yoyaku_hikiate_su']=0;
+		}//end for
+
+		// 展開したセット商品の情報をメンバに記録
+		$this->set_syohin_expands_info_array[] = array('exp_before' => $exp_before, 'exp_after_array' => $exp_after_array ) ;
+	}//end function
+
+	/**
+	 * 合計金額 <= ポイントの場合、ポイント全額支払判定をするかを設定
+	 *
+	 * @param  boolean  $p_set_shiharai_kbn  true  : 支払方法の判定を行う
+	 *                                       false : 支払方法の判定をしない
+	 *
+	 */
+	public function setIsSetShiharaiKbn($p_set_shiharai_kbn){
+		$this->is_set_siharai_kbn = $p_set_shiharai_kbn;
+	}
+
+	/**
+	　* 支払発送変換設定の実行
+	　* ここは、オールインワンパターンと、API取込処理の場合のみ通る。
+	　*
+	　*/
+	private function convHenkanCode(){
+		foreach($this->siharai_hasou_henkan_array as $koumoku_name_one){
+			if (!$this->param_array[$koumoku_name_one]){
+				continue;
+			}
+			if ($this->param_array[$koumoku_name_one] !==''){
+				$sql="SELECT henkan_code FROM $this->user_schema.t_mst_henkan
+						WHERE key_text=? AND koumoku_name=? AND sakujyo_flg='0'";
+				$ary_param = array($this->param_array[$koumoku_name_one], $koumoku_name_one);
+				$res = $this->db->fetchOne($sql,$ary_param);
+			}
+
+			if ($this->param_array[$koumoku_name_one] !=='' && $res != ''){
+				$this->param_array[$koumoku_name_one] = $res;
+			} else {
+				//規定値設定を通すために、空に置き換え。その前に変数に取得。警告メッセージに出力するため。
+				$param_koumoku_value = $this->param_array[$koumoku_name_one];
+				//TODO
+				//支払発送変換の変換対象がない場合、''を設定していることで、
+				//jyuchuHinsert2()で長さ=0 -> nullと変換され、DBのカラムがnot nullだと
+				//登録の際にエラーになってしまう。
+				//paramInit()でせっかく初期値を設定しているので、下記の''を入れる処理は削除するべきだと判断される。
+				//https://neprj.next-engine.com:10080/ld3sl/issues/45148
+				$this->param_array[$koumoku_name_one] = '';
+				if ($koumoku_name_one === 'siharai_kbn'){
+					$err_kbn_name='支払方法';
+				} elseif ($koumoku_name_one === 'hasou_kbn'){
+					$err_kbn_name='発送方法';
+
+				} elseif ($koumoku_name_one === 'credit_kbn'){
+					$err_kbn_name='クレジット種類';
+				}
+				//取得するコードが無かった場合
+				$this->param_array['wk_sagyosya_ran'].= '取込はされましたが、受注ＣＳＶファイル内の名称「'.$param_koumoku_value."」が受注伝票項目「".$err_kbn_name."」に取り込めませんでした。\n";
+			}
+		}
+
+        //支払発送変換設定に不備があった場合のエラーメッセージを作業用欄に格納する
+        if($this->param_array['wk_sagyosya_ran'] != ''){
+            $sagyosya_ran="***<<区分変換警告>>*****\n".
+                $this->param_array['wk_sagyosya_ran'].
+                $err_hasou_msg.
+                "お手数ですが、メニュー「設定」->「受注」->「支払発送変換設定」で\n ".
+                "取り込めなかった名称と変換する値を関連づけて下さい。次回より自動で取り込みます。\n".
+                "***<<区分変換警告>>*****";
+            $this->param_array['sagyosya_ran'].=$sagyosya_ran;
+        }
+	}
+
+	/**
+	* ヘッダ情報について、オールインワンと同様の形式でセットするか否かをbooleanで返す
+	*
+	* 1.店舗のモールコードが以下のいずれか
+	*   11:Amazon
+	*   37:AmazonUSA
+	* 2.受注メールから有効化するためのフラグあり
+	* 3.オールインワン処理フラグあり
+	* 上記のいずれかに該当する場合にオールインワンと同様の形式としてtrue、それ以外ならfalseを返す
+	*
+	* @return boolean
+	*/
+	private function isAllInOneHeaderSet(){
+		$all_in_one_tenpo_array = array(11, 37);
+		if(in_array(intval($this->param_array['moru_code']), $all_in_one_tenpo_array, true) || $this->mail_able_flg === 'XX' || $this->all_in_one_flg === 'XX'){
+			return true;
+		}else{
+			return false;
+		}
+	}
+
+	/**
+	* param_arrayにセットされた店舗コード、伝票番号のメール取込済伝票をSELECTして返す
+	*
+	* @param  array $columns 必要なカラム名の配列
+	* @return array $result  クエリの実行結果
+	*/
+	private function getMailJyuchuDenpyo($columns){
+		$query = QueryBuilder::select()
+				 ->column($columns)
+				 ->from("{$this->user_schema}.t_trn_jyuchu_header")
+				 ->where('tenpo_code', '=', $this->param_array['tenpo_code'])
+				 ->where('tenpo_denpyo_no', '=', $this->param_array['tenpo_denpyo_no'])
+				 ->where('torikomi_syurui_kbn', '=', '0')
+				 ->where('sakujyo_flg', '=', '0');
+
+		return $this->db->fetchAll($query->build(), $query->buildParams());
+	}
+
+	/**
+	* 合計金を再計算しないモールを判定する。
+	* 本来再計算は合計金が受注データに入って来ないAmazonのみだと思われるが、
+	* Amazonのみ再計算する処理に変更するとインシデント発生時のリカバリーコストが高くなるため、
+	* 不具合の報告がきているモールのみ当メソッドに書き出し、合計金を再計算しない。
+	* 詳細は#29814
+	*
+	* @param  array $moru_code 再計算するか判定するモールコード
+	* @return boolean
+	*/
+	private function isGoukeiKinRecalculationMall($moru_code){
+		$notRecalculationMall = array(Models_Kbn_Mall::YAHOO);
+		if (in_array((int)$moru_code, $notRecalculationMall, true)) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+}//end class

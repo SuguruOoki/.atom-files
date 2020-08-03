@@ -1,0 +1,51 @@
+{
+  "_from": "https://www.atom.io/api/packages/atom-runner/versions/2.7.1/tarball",
+  "_id": "atom-runner@2.7.1",
+  "_inBundle": false,
+  "_integrity": "sha512-jerXrWK4aZycMjG+gJq2Q0O9hK7CPrOoDtF0q3+xk3ZmbfOmgov2o8lwMNWbfkIU4Vhvz8NUzcIMUpmNu2KS0A==",
+  "_location": "/atom-runner",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/atom-runner/versions/2.7.1/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/atom-runner/versions/2.7.1/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/atom-runner/versions/2.7.1/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/atom-runner/versions/2.7.1/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/atom-runner/versions/2.7.1/tarball",
+  "_shasum": "2244af9100d21998e1f72bbc465da40d76649e56",
+  "_spec": "https://www.atom.io/api/packages/atom-runner/versions/2.7.1/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-11945-83670-10mnxpl.jr81",
+  "activationCommands": {
+    "atom-text-editor": [
+      "run:file",
+      "run:selection",
+      "run:stop",
+      "run:close",
+      "run:copy"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/lsegal/atom-runner/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "ansi-to-html": "0.1.x",
+    "atom-space-pen-views": "^2.0.3"
+  },
+  "deprecated": false,
+  "description": "Runs scripts inside of Atom.",
+  "homepage": "https://github.com/lsegal/atom-runner#readme",
+  "license": "MIT",
+  "main": "./lib/atom-runner",
+  "name": "atom-runner",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lsegal/atom-runner.git"
+  },
+  "version": "2.7.1"
+}

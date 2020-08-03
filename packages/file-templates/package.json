@@ -1,0 +1,55 @@
+{
+  "_from": "https://www.atom.io/api/packages/file-templates/versions/0.2.0/tarball",
+  "_id": "file-templates@0.2.0",
+  "_inBundle": false,
+  "_integrity": "sha512-5ogVYBfkZyxr9GBR2TjczXm5VYZRBKukhImgI6WqOOtrfCELR1A2vmKhLMD7064dhBg+d8yMXgI0rJ0u8V1Irg==",
+  "_location": "/file-templates",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/file-templates/versions/0.2.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/file-templates/versions/0.2.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/file-templates/versions/0.2.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/file-templates/versions/0.2.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/file-templates/versions/0.2.0/tarball",
+  "_shasum": "83ea658225d7b9b06cc2358d544b5793b97651ff",
+  "_spec": "https://www.atom.io/api/packages/file-templates/versions/0.2.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-11923-81302-lrjpdq.rq78p",
+  "activationCommands": {
+    "atom-workspace": [
+      "file-templates:delete-template",
+      "file-templates:new-file",
+      "file-templates:new-template",
+      "file-templates:update-template"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/arcath/file-templates/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "atom-space-pen-views": "^0",
+    "fs-plus": "^2.0.4",
+    "space-pen": "^4",
+    "underscore": "^1.8.2"
+  },
+  "deprecated": false,
+  "description": "File template manager for Atom",
+  "engines": {
+    "atom": "*"
+  },
+  "homepage": "https://github.com/arcath/file-templates#readme",
+  "license": "MIT",
+  "main": "./lib/file-templates",
+  "name": "file-templates",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arcath/file-templates.git"
+  },
+  "version": "0.2.0"
+}

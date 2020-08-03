@@ -1,0 +1,18 @@
+'menu': [
+  {
+    'label': 'Packages'
+    'submenu': [
+      'label': 'Atom Commit Templates'
+      'submenu': [
+        {
+          'label': 'Set Commit Template'
+          'command': 'atom-commit-templates:Set Commit Template'
+        },
+        {
+          'label': 'Clear Commit Template'
+          'command': 'atom-commit-templates:Clear Commit Template'
+        }
+      ]
+    ]
+  }
+]

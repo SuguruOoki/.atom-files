@@ -1,0 +1,47 @@
+{
+  "_from": "https://www.atom.io/api/packages/atom-vue-router/versions/0.3.0/tarball",
+  "_id": "atom-vue-router@0.3.0",
+  "_inBundle": false,
+  "_integrity": "sha512-zA+gEO7WsmoTiLmDaezSG370sgdCCta35pi0jNdfT4sVF73HpaxhGKOqfvEssYKGka3z9d+IyE596AC7uwm3zA==",
+  "_location": "/atom-vue-router",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/atom-vue-router/versions/0.3.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/atom-vue-router/versions/0.3.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/atom-vue-router/versions/0.3.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/atom-vue-router/versions/0.3.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/atom-vue-router/versions/0.3.0/tarball",
+  "_shasum": "69c71401319003626c60ac543f73253bdabffa34",
+  "_spec": "https://www.atom.io/api/packages/atom-vue-router/versions/0.3.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-119324-38854-bvaor2.bkq95",
+  "bugs": {
+    "url": "https://github.com/code4mk/atom-vue-router/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Vue-router integrates with Vue.js core to make building Single Page Applications  >> Snippet >> atom-vue-router by @code4mk",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "homepage": "https://github.com/code4mk/atom-vue-router#readme",
+  "keywords": [
+    "vue-router",
+    "laravel",
+    "vue",
+    "Snippet"
+  ],
+  "license": "MIT",
+  "name": "atom-vue-router",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/code4mk/atom-vue-router.git"
+  },
+  "version": "0.3.0"
+}

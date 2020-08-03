@@ -1,0 +1,46 @@
+{
+  "_from": "https://www.atom.io/api/packages/atom-vue/versions/0.6.0/tarball",
+  "_id": "atom-vue@0.6.0",
+  "_inBundle": false,
+  "_integrity": "sha512-LKxXcLkR4W5ZGLOXyfvtTIDt8jK4GZFQ6tg0sf2NCM0oV8FA0m9CERedDEOnsjtCu6YpBqx426uGBfiUNMmndQ==",
+  "_location": "/atom-vue",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/atom-vue/versions/0.6.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/atom-vue/versions/0.6.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/atom-vue/versions/0.6.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/atom-vue/versions/0.6.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/atom-vue/versions/0.6.0/tarball",
+  "_shasum": "cb734e2a7b944ba84c52c09f671adddbd7984196",
+  "_spec": "https://www.atom.io/api/packages/atom-vue/versions/0.6.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-119324-38832-likfqo.7h86c",
+  "bugs": {
+    "url": "https://github.com/code4mk/atom-vue/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Vue Snippet >> atom-vue by @code4mk",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "homepage": "https://github.com/code4mk/atom-vue#readme",
+  "keywords": [
+    "vue",
+    "vue-snippet",
+    "laravel"
+  ],
+  "license": "MIT",
+  "name": "atom-vue",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/code4mk/atom-vue.git"
+  },
+  "version": "0.6.0"
+}

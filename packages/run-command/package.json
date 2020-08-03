@@ -1,0 +1,62 @@
+{
+  "_from": "https://www.atom.io/api/packages/run-command/versions/0.5.0/tarball",
+  "_id": "run-command@0.5.0",
+  "_inBundle": false,
+  "_integrity": "sha512-nldY+LRNOGRntKfGv/Dr6FzxVMXuRRFNZ+w8VVycyCkDHaneqOQappDtzEk4Avv0VCfo8zkOBjg08EPw/fHXMQ==",
+  "_location": "/run-command",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "remote",
+    "raw": "https://www.atom.io/api/packages/run-command/versions/0.5.0/tarball",
+    "rawSpec": "https://www.atom.io/api/packages/run-command/versions/0.5.0/tarball",
+    "saveSpec": "https://www.atom.io/api/packages/run-command/versions/0.5.0/tarball",
+    "fetchSpec": "https://www.atom.io/api/packages/run-command/versions/0.5.0/tarball"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://www.atom.io/api/packages/run-command/versions/0.5.0/tarball",
+  "_shasum": "1ea80fb2be85c40579305c6c9250af331de3e3c6",
+  "_spec": "https://www.atom.io/api/packages/run-command/versions/0.5.0/tarball",
+  "_where": "/private/var/folders/2c/dnzw54sd68x1m4qynty3jyxm0000gp/T/apm-install-dir-1181019-3387-18bque4.xlv6",
+  "activationCommands": {
+    "atom-workspace": [
+      "run-command:run",
+      "run-command:toggle-panel",
+      "run-command:kill-last-command"
+    ]
+  },
+  "author": {
+    "name": "Kyle Lacy"
+  },
+  "bugs": {
+    "url": "https://github.com/kylewlacy/run-command/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "atom-space-pen-views": "^2.0.3",
+    "pty.js": "https://github.com/chjj/pty.js/archive/master.tar.gz"
+  },
+  "deprecated": false,
+  "description": "Run any Unix command.",
+  "engines": {
+    "atom": ">=0.174.0 <2.0.0"
+  },
+  "homepage": "https://github.com/kylewlacy/run-command",
+  "keywords": [
+    "command",
+    "terminal",
+    "execute",
+    "unix",
+    "run"
+  ],
+  "license": "MIT",
+  "main": "./lib/main",
+  "name": "run-command",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kylewlacy/run-command.git"
+  },
+  "version": "0.5.0"
+}
